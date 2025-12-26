@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clepto OS - Business Operations Platform</title>
+    <meta name="description" content="Self-hosted CRM, ERP, HR, and business management platform">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">C</div>
+                <span class="logo-text">clepto</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Dashboard</span>
+            </a>
+            
+            <div class="nav-section">CRM</div>
+            <a href="#contacts" class="nav-item" data-page="contacts">
+                <i data-lucide="users"></i>
+                <span>Contacts</span>
+            </a>
+            <a href="#companies" class="nav-item" data-page="companies">
+                <i data-lucide="building-2"></i>
+                <span>Companies</span>
+            </a>
+            <a href="#deals" class="nav-item" data-page="deals">
+                <i data-lucide="handshake"></i>
+                <span>Deals</span>
+            </a>
+
+            <div class="nav-section">Projects</div>
+            <a href="#projects" class="nav-item" data-page="projects">
+                <i data-lucide="folder-kanban"></i>
+                <span>Projects</span>
+            </a>
+            <a href="#tasks" class="nav-item" data-page="tasks">
+                <i data-lucide="check-square"></i>
+                <span>Tasks</span>
+            </a>
+
+            <div class="nav-section">Operations</div>
+            <a href="#hr" class="nav-item" data-page="hr">
+                <i data-lucide="user-cog"></i>
+                <span>HR</span>
+            </a>
+            <a href="#finance" class="nav-item" data-page="finance">
+                <i data-lucide="dollar-sign"></i>
+                <span>Finance</span>
+            </a>
+            <a href="#docs" class="nav-item" data-page="docs">
+                <i data-lucide="file-text"></i>
+                <span>Docs</span>
+            </a>
+
+            <div class="nav-section">Marketing</div>
+            <a href="#email" class="nav-item" data-page="email">
+                <i data-lucide="mail"></i>
+                <span>Email & Campaigns</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar">A</div>
+                <div class="user-info">
+                    <div class="user-name">Admin</div>
+                    <div class="user-role">Administrator</div>
+                </div>
+                <i data-lucide="more-vertical"></i>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-menu-toggle">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="search-bar">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Search everything...">
+                    <kbd>Ctrl K</kbd>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-icon" title="Notifications">
+                    <i data-lucide="bell"></i>
+                    <span class="badge">3</span>
+                </button>
+                <button class="topbar-icon" title="Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Container -->
+        <div class="content-container" id="page-content">
+            <!-- Dashboard Page (Default) -->
+            <div id="dashboard-page" class="page active">
+                <div class="page-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p class="page-subtitle">Welcome back! Here's what's happening today.</p>
+                    </div>
+                    <button class="btn btn-primary">
+                        <i data-lucide="plus"></i>
+                        <span>New Entry</span>
+                    </button>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(11, 215, 212, 0.1);">
+                            <i data-lucide="dollar-sign" style="color: var(--accent);"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Revenue (MTD)</div>
+                            <div class="stat-value">$48,352</div>
+                            <div class="stat-change positive">
+                                <i data-lucide="trending-up"></i>
+                                <span>12.5% vs last month</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1);">
+                            <i data-lucide="users" style="color: #3b82f6;"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Active Deals</div>
+                            <div class="stat-value">24</div>
+                            <div class="stat-change positive">
+                                <i data-lucide="trending-up"></i>
+                                <span>+6 this week</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(168, 85, 247, 0.1);">
+                            <i data-lucide="folder-kanban" style="color: #a855f7;"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Active Projects</div>
+                            <div class="stat-value">12</div>
+                            <div class="stat-change">
+                                <i data-lucide="minus"></i>
+                                <span>No change</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1);">
+                            <i data-lucide="alert-circle" style="color: #ef4444;"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Overdue Tasks</div>
+                            <div class="stat-value">7</div>
+                            <div class="stat-change negative">
+                                <i data-lucide="trending-down"></i>
+                                <span>Needs attention</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts & Recent Activity -->
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Revenue Trend</h3>
+                            <select class="select-minimal">
+                                <option>Last 30 days</option>
+                                <option>Last 90 days</option>
+                                <option>This year</option>
+                            </select>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Activity</h3>
+                            <a href="#" class="text-link">View all</a>
+                        </div>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background: rgba(11, 215, 212, 0.1);">
+                                    <i data-lucide="check-circle-2" style="color: var(--accent);"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">Deal closed: Acme Corp</div>
+                                    <div class="activity-meta">$25,000 • 2 hours ago</div>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background: rgba(59, 130, 246, 0.1);">
+                                    <i data-lucide="user-plus" style="color: #3b82f6;"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">New contact added</div>
+                                    <div class="activity-meta">Sarah Johnson • 4 hours ago</div>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background: rgba(168, 85, 247, 0.1);">
+                                    <i data-lucide="file-text" style="color: #a855f7;"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">Invoice generated</div>
+                                    <div class="activity-meta">INV-2025-001 • 5 hours ago</div>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background: rgba(34, 197, 94, 0.1);">
+                                    <i data-lucide="folder" style="color: #22c55e;"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">Project started</div>
+                                    <div class="activity-meta">Website Redesign • Yesterday</div>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background: rgba(251, 146, 60, 0.1);">
+                                    <i data-lucide="mail" style="color: #fb923c;"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">Email campaign sent</div>
+                                    <div class="activity-meta">Monthly Newsletter • 2 days ago</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks Overview -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Upcoming Tasks</h3>
+                        <a href="#tasks" class="text-link">View all tasks</a>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Project</th>
+                                <th>Assignee</th>
+                                <th>Due Date</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="task-name">
+                                        <i data-lucide="check-square" class="icon-sm"></i>
+                                        Complete API documentation
+                                    </div>
+                                </td>
+                                <td><span class="project-tag">API Integration</span></td>
+                                <td>
+                                    <div class="assignee">
+                                        <div class="avatar-sm">JD</div>
+                                        John Doe
+                                    </div>
+                                </td>
+                                <td>Today</td>
+                                <td><span class="badge badge-high">High</span></td>
+                                <td><span class="status-badge status-progress">In Progress</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="task-name">
+                                        <i data-lucide="check-square" class="icon-sm"></i>
+                                        Review design mockups
+                                    </div>
+                                </td>
+                                <td><span class="project-tag">Website Redesign</span></td>
+                                <td>
+                                    <div class="assignee">
+                                        <div class="avatar-sm">SJ</div>
+                                        Sarah Johnson
+                                    </div>
+                                </td>
+                                <td>Tomorrow</td>
+                                <td><span class="badge badge-medium">Medium</span></td>
+                                <td><span class="status-badge status-todo">To Do</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="task-name">
+                                        <i data-lucide="check-square" class="icon-sm"></i>
+                                        Client meeting preparation
+                                    </div>
+                                </td>
+                                <td><span class="project-tag">Acme Corp</span></td>
+                                <td>
+                                    <div class="assignee">
+                                        <div class="avatar-sm">MB</div>
+                                        Mike Brown
+                                    </div>
+                                </td>
+                                <td>Dec 28</td>
+                                <td><span class="badge badge-high">High</span></td>
+                                <td><span class="status-badge status-todo">To Do</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Other pages will be loaded dynamically -->
+            <div id="contacts-page" class="page"></div>
+            <div id="companies-page" class="page"></div>
+            <div id="deals-page" class="page"></div>
+            <div id="projects-page" class="page"></div>
+            <div id="tasks-page" class="page"></div>
+            <div id="hr-page" class="page"></div>
+            <div id="finance-page" class="page"></div>
+            <div id="docs-page" class="page"></div>
+            <div id="email-page" class="page"></div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/assets/js/app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
