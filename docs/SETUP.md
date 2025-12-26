@@ -277,52 +277,31 @@ CORS_ALLOWED_ORIGINS=https://crm.clepto.io
 
 ---
 
-## Step 8: Update Docker Config for Traefik
+## Step 8: Deploy Clepto Services
 
-Your Traefik is already running, so we connect Clepto to it:
+Your Traefik is already running (`root-traefik-1`), so we just start Clepto:
 
 ```bash
 cd /opt/clepto/infra
-nano docker-compose.yml
+docker compose up -d
 ```
 
-Find the `clepto-db` service and **uncomment it** (remove the `#` from all lines).
+**This will:**
+- Start Clepto database (internal, not exposed)
+- Start Redis cache (internal, not exposed)
+- Start Clepto CRM web app (connected to your Traefik)
 
-Then scroll down and find the **networks section at the bottom**. Add this:
+**Wait 1-2 minutes** for containers to start.
 
-```yaml
-networks:
-  clepto-network:
-    driver: bridge
-  traefik_public:
-    external: true
+Check status:
+```bash
+docker ps | grep clepto
 ```
 
-Find the commented `# clepto-crm:` service. **Uncomment it** and update it to:
-
-```yaml
-  clepto-crm:
-    build: ../apps/clepto-crm
-    container_name: clepto-crm
-    restart: unless-stopped
-    depends_on:
-      - clepto-db
-    environment:
-      DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@clepto-db:5432/${PG_DATABASE}
-      NODE_ENV: ${NODE_ENV}
-      RESEND_API_KEY: ${RESEND_API_KEY}
-    networks:
-      - clepto-network
-      - traefik_public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.clepto.rule=Host(`crm.clepto.io`)"
-      - "traefik.http.routers.clepto.entrypoints=websecure"
-      - "traefik.http.routers.clepto.tls.certresolver=letsencrypt"
-      - "traefik.http.services.clepto.loadbalancer.server.port=3000"
-```
-
-**Save:** `Ctrl+X`, `Y`, `Enter`
+You should see 3 containers:
+- `clepto-db`
+- `clepto-redis`
+- `clepto-crm`
 
 ---
 
