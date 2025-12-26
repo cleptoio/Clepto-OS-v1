@@ -1,670 +1,334 @@
-# 🚀 Clepto OS - Complete Setup Guide for Non-Coders
+# 🚀 Complete Setup Guide for Clepto OS
 
-Welcome! This guide will walk you through setting up Clepto OS on your VPS **step by step**. No coding experience needed!
+**This is the ONLY guide you need!** Everything in one place, in simple language.
+
+---
 
 ## 📋 What You'll Need
 
-Before starting, make sure you have:
-
-- ✅ A VPS (Virtual Private Server) with Ubuntu 24.04
-  - Minimum: 2GB RAM, 2 CPU cores, 50GB storage
-  - Recommended providers: DigitalOcean, Linode, Hetzner, Vultr
-- ✅ A domain name (e.g., `clepto.io`)
-- ✅ GitHub account (free)
-- ✅ SSH client installed on your computer
-  - **Windows**: Use built-in PowerShell or download [PuTTY](https://www.putty.org/)
-  - **Mac/Linux**: Built-in terminal works!
+Before starting, have these ready:
+- ✅ GitHub token (you already have this!)
+- ✅ VPS access: `ssh root@148.230.120.207`
+- ✅ Domain: `crm.clepto.io` (will configure DNS)
+- ✅ n8n: https://n8n.srv1003656.hstgr.cloud/
 
 ---
 
-## 🎯 Overview: What We'll Do
+## Step 1: Generate Your Secret Keys (5 minutes)
 
-1. Set up your VPS (install Docker, configure firewall)
-2. Configure your domain DNS
-3. Connect your VPS to GitHub (so updates deploy automatically)
-4. Deploy Clepto OS
-5. Access your platform!
+You need 3 random secret keys for security. 
 
-**Estimated Time**: 30-45 minutes
+### Option A: Use Online Generator (Easiest)
+1. Go to: https://www.random.org/strings/?num=3&len=32&digits=on&upperalpha=on&loweralpha=on&unique=on&format=html&rnd=new
+2. Click "Get Strings"
+3. **Copy all 3 strings** and save them in a text file on your computer
 
----
+### Option B: Use Your VPS
+SSH into your VPS and run:
+```bash
+openssl rand -base64 32
+```
+Run it 3 times, save each result.
 
-## Step 1: Access Your VPS via SSH
-
-### What is SSH?
-SSH (Secure Shell) is a way to remotely control your server using commands. Think of it like remote desktop, but with text commands.
-
-### How to Connect
-
-#### On Windows (PowerShell):
-1. Press `Windows Key + X` and select "Windows PowerShell" or "Terminal"
-2. Type this command (replace with your VPS IP):
-   ```powershell
-   ssh root@YOUR_VPS_IP_ADDRESS
-   ```
-   Example: `ssh root@123.45.67.89`
-
-3. First time connecting? You'll see a message asking "Are you sure you want to continue connecting?" Type `yes` and press Enter
-4. Enter your VPS password (you received this from your VPS provider)
-
-#### On Mac/Linux:
-1. Open Terminal (press `Cmd + Space`, type "Terminal")
-2. Type:
-   ```bash
-   ssh root@YOUR_VPS_IP_ADDRESS
-   ```
-3. Same as Windows - type `yes` when prompted, then enter your password
-
-> **✏️ Tip**: Your password won't show when typing - that's normal! Just type it and press Enter.
+**Save these 3 secrets as:**
+- `APP_SECRET`
+- `JWT_SECRET`  
+- `SESSION_SECRET`
 
 ---
 
-## Step 2: Update Your VPS
+## Step 2: Choose a Database Password
 
-Once connected, run these commands **one by one** (copy, paste, press Enter):
+Pick a **strong password** (20+ characters, mix of letters/numbers/symbols).
+
+**Save it as:** `PG_PASSWORD`
+
+---
+
+## Step 3: SSH Into Your VPS
+
+Open PowerShell (Windows) or Terminal (Mac):
+
+```powershell
+ssh root@148.230.120.207
+```
+
+Enter your password when prompted.
+
+---
+
+## Step 4: Create Database
+
+Your PostgreSQL is already running. Create a new database for Clepto:
 
 ```bash
-# Update package list
-apt update
-
-# Upgrade all packages
-apt upgrade -y
-
-# Install basic tools
-apt install -y curl git ufw fail2ban
+docker exec -it postgres-16-alpine psql -U postgres
 ```
 
-**What this does**: Updates your server to the latest versions and installs essential security tools.
+Inside PostgreSQL, paste this (replace `YOUR_PASSWORD` with your Step 2 password):
 
-⏱️ **Wait time**: 2-5 minutes
+```sql
+CREATE DATABASE clepto_os;
+CREATE USER clepto WITH PASSWORD 'YOUR_PASSWORD';
+GRANT ALL PRIVILEGES ON DATABASE clepto_os TO clepto;
+\q
+```
+
+**Example:**
+```sql
+CREATE DATABASE clepto_os;
+CREATE USER clepto WITH PASSWORD 'MyS3cur3P@ssw0rd2024!';
+GRANT ALL PRIVILEGES ON DATABASE clepto_os TO clepto;
+\q
+```
 
 ---
 
-## Step 3: Install Docker
+## Step 5: Clone Clepto OS from GitHub
 
-Docker is the technology that runs Clepto OS. Let's install it:
+Still in your VPS terminal:
 
 ```bash
-# Download Docker installation script
-curl -fsSL https://get.docker.com -o get-docker.sh
-
-# Run the installer
-sh get-docker.sh
-
-# Start Docker automatically on boot
-systemctl enable docker
-
-# Start Docker now
-systemctl start docker
-
-# Verify Docker is working
-docker --version
+cd /opt
+git clone https://github.com/cleptoio/Clepto-OS-v1.git clepto
+cd clepto
 ```
-
-You should see something like: `Docker version 24.0.7, build...`
-
-✅ **Success!** Docker is installed.
 
 ---
 
-## Step 4: Install Docker Compose
+## Step 6: Create Your Environment File
 
-Docker Compose helps manage multiple Docker containers (services) together.
-
-```bash
-# Download Docker Compose
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# Make it executable
-chmod +x /usr/local/bin/docker-compose
-
-# Verify installation
-docker-compose --version
-```
-
-You should see: `Docker Compose version v2.x.x`
-
----
-
-## Step 5: Configure Firewall (Security!)
-
-We'll set up a firewall to protect your server. Only allow necessary ports:
+Create the `.env` file:
 
 ```bash
-# Allow SSH (so you can connect)
-ufw allow 22/tcp
-
-# Allow HTTP (for web traffic)
-ufw allow 80/tcp
-
-# Allow HTTPS (for secure web traffic)
-ufw allow 443/tcp
-
-# Enable firewall
-ufw --force enable
-
-# Check status
-ufw status
-```
-
-You should see:
-```
-Status: active
-
-To                         Action      From
---                         ------      ----
-22/tcp                     ALLOW       Anywhere
-80/tcp                     ALLOW       Anywhere
-443/tcp                    ALLOW       Anywhere
-```
-
-✅ **Firewall configured!**
-
----
-
-## Step 6: Set Up SSH Key for GitHub
-
-This allows your VPS to automatically pull code from GitHub.
-
-### Generate SSH Key on VPS
-
-```bash
-# Generate a new SSH key
-ssh-keygen -t ed25519 -C "vps@clepto.io"
-```
-
-**When prompted**:
-- "Enter file in which to save the key": Press **Enter** (use default)
-- "Enter passphrase": Press **Enter** (no passphrase for automation)
-- "Enter same passphrase again": Press **Enter**
-
-### Copy Your Public Key
-
-```bash
-# Display your public key
-cat ~/.ssh/id_ed25519.pub
-```
-
-You'll see something like:
-```
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... vps@clepto.io
-```
-
-**📋 COPY THIS ENTIRE LINE** (including `ssh-ed25519` and the email at the end)
-
-### Add SSH Key to GitHub
-
-1. Go to [GitHub.com](https://github.com) and log in
-2. Click your **profile picture** (top right) → **Settings**
-3. In left sidebar, click **SSH and GPG keys**
-4. Click **New SSH key** (green button)
-5. **Title**: Enter "Clepto OS VPS"
-6. **Key**: Paste the key you copied
-7. Click **Add SSH key**
-
-✅ **GitHub connection ready!**
-
----
-
-## Step 7: Configure Your Domain DNS
-
-You need to point your domain to your VPS.
-
-### Get Your VPS IP Address
-
-If you're still connected via SSH:
-```bash
-curl -4 ifconfig.me
-```
-
-This shows your public IP (e.g., `123.45.67.89`). **Write this down!**
-
-### Add DNS Records
-
-Log in to your domain registrar (e.g., Namecheap, GoDaddy, Cloudflare) and add these **A records**:
-
-| Type | Name | Value | TTL |
-|------|------|-------|-----|
-| A | @ | YOUR_VPS_IP | 300 |
-| A | crm | YOUR_VPS_IP | 300 |
-| A | mail | YOUR_VPS_IP | 300 |
-| A | www | YOUR_VPS_IP | 300 |
-
-**Example** (if your domain is `clepto.io` and IP is `123.45.67.89`):
-- `@` → `123.45.67.89` (clepto.io)
-- `crm` → `123.45.67.89` (crm.clepto.io)
-- `mail` → `123.45.67.89` (mail.clepto.io)
-
-⏱️ **Wait 5-10 minutes** for DNS to propagate.
-
----
-
-## Step 8: Clone Clepto OS Repository
-
-Back in your SSH terminal:
-
-```bash
-# Go to home directory
-cd ~
-
-# Clone the repository
-git clone git@github.com:cleptoio/Clepto-OS-v1.git
-
-# Enter the directory
-cd Clepto-OS-v1
-```
-
-> **⚠️ Important**: Replace `cleptoio/Clepto-OS-v1` with your actual GitHub username and repo name!
-
----
-
-## Step 9: Configure Environment Variables
-
-Environment variables are settings for your application (database passwords, domain names, etc.).
-
-```bash
-# Copy the example environment file
-cp infra/env/.env.example .env
-
-# Edit the file
 nano .env
 ```
 
-### What to Change in .env
+Paste this (replace values with YOUR secrets from Steps 1-2):
 
-You'll see a file with various settings. Use **arrow keys** to navigate. Change these values:
+```env
+# ========== BASICS ==========
+NODE_ENV=production
+DOMAIN=crm.clepto.io
+SERVER_URL=https://crm.clepto.io
 
-```bash
-# Domain Settings
-DOMAIN=clepto.io                    # Your domain (without www)
-CRM_DOMAIN=crm.clepto.io           # CRM subdomain
-MAIL_DOMAIN=mail.clepto.io         # Mail subdomain
+# ========== SECRETS (from Step 1) ==========
+APP_SECRET=PASTE_YOUR_APP_SECRET_HERE
+JWT_SECRET=PASTE_YOUR_JWT_SECRET_HERE
+SESSION_SECRET=PASTE_YOUR_SESSION_SECRET_HERE
 
-# Database Passwords (CHANGE THESE!)
-POSTGRES_PASSWORD=CHANGE_ME_TO_STRONG_PASSWORD_1
-DB_CRM_PASSWORD=CHANGE_ME_TO_STRONG_PASSWORD_2
-DB_MAIL_PASSWORD=CHANGE_ME_TO_STRONG_PASSWORD_3
+# ========== DATABASE (from Step 2) ==========
+PG_HOST=postgres-16-alpine
+PG_PORT=5432
+PG_DATABASE=clepto_os
+PG_USER=clepto
+PG_PASSWORD=PASTE_YOUR_DATABASE_PASSWORD_HERE
 
-# Admin Email
-ADMIN_EMAIL=your-email@clepto.io   # Your email for SSL certificates
+# ========== EMAIL (Resend) ==========
+RESEND_API_KEY=re_K49fDJ7C_BrbYYi9rwuM28guhp8B8PGPi
+SMTP_FROM=noreply@clepto.io
+ADMIN_EMAIL=mayank.khanvilkar@clepto.io
 
-# n8n Settings
-N8N_WEBHOOK_URL=https://n8n.clepto.io  # If you have n8n running
+# ========== n8n ==========
+N8N_WEBHOOK_URL=https://n8n.srv1003656.hstgr.cloud/webhook
+
+# ========== SECURITY DEFAULTS (don't change) ==========
+JWT_EXPIRES_IN=1h
+SESSION_TIMEOUT_MINUTES=30
+ENABLE_2FA=true
+CORS_ALLOWED_ORIGINS=https://crm.clepto.io
 ```
 
-**To save and exit**:
-1. Press `Ctrl + X`
-2. Press `Y` (yes to save)
-3. Press `Enter` (confirm filename)
-
-> **🔐 Security Tip**: Use strong, random passwords! You can generate them at [passwordsgenerator.net](https://passwordsgenerator.net/)
+**To save:**
+- Press `Ctrl + X`
+- Press `Y`
+- Press `Enter`
 
 ---
 
-## Step 10: Deploy Clepto OS! 🚀
+## Step 7: Configure DNS (Hostinger)
 
-Now the moment we've been waiting for:
+1. Go to **Hostinger Dashboard** → **Domains**
+2. Click on `clepto.io` → **DNS / Name Servers**
+3. Click **"Add Record"**
+4. Add:
+   - **Type:** A
+   - **Name:** crm
+   - **Value:** 148.230.120.207
+   - **TTL:** 3600
+5. Click **Save**
 
-```bash
-# Make sure you're in the project directory
-cd ~/Clepto-OS-v1
-
-# Start all services
-docker-compose -f infra/docker-compose.yml up -d
-```
-
-**What `-d` means**: Run in "detached" mode (in the background)
-
-### Monitor the Deployment
-
-```bash
-# Watch the logs (press Ctrl+C to stop watching)
-docker-compose -f infra/docker-compose.yml logs -f
-```
-
-You'll see lots of text scrolling. Look for messages like:
-- `✓ Container clepto-crm started`
-- `✓ Container clepto-mail started`
-- `Server is running on port 3000`
-
-⏱️ **First-time setup takes**: 5-10 minutes (Docker downloads and builds everything)
+**Wait 5-10 minutes** for DNS to update.
 
 ---
 
-## Step 11: Create Admin User
+## Step 8: Update Docker Config for Traefik
 
-Once deployment is complete, create your first admin user:
+Your Traefik is already running, so we connect Clepto to it:
 
 ```bash
-# Access the CRM container
-docker-compose -f infra/docker-compose.yml exec clepto-crm sh
-
-# Inside the container, run the admin creation script
-npm run create-admin
+cd /opt/clepto/infra
+nano docker-compose.yml
 ```
 
-Follow the prompts to enter:
-- **Email**: Your admin email
-- **Password**: Your admin password
-- **First Name**: Your first name
-- **Last Name**: Your last name
+Find the `clepto-db` service and **uncomment it** (remove the `#` from all lines).
 
-Type `exit` to leave the container.
+Then scroll down and find the **networks section at the bottom**. Add this:
+
+```yaml
+networks:
+  clepto-network:
+    driver: bridge
+  traefik_public:
+    external: true
+```
+
+Find the commented `# clepto-crm:` service. **Uncomment it** and update it to:
+
+```yaml
+  clepto-crm:
+    build: ../apps/clepto-crm
+    container_name: clepto-crm
+    restart: unless-stopped
+    depends_on:
+      - clepto-db
+    environment:
+      DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@clepto-db:5432/${PG_DATABASE}
+      NODE_ENV: ${NODE_ENV}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+    networks:
+      - clepto-network
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.clepto.rule=Host(`crm.clepto.io`)"
+      - "traefik.http.routers.clepto.entrypoints=websecure"
+      - "traefik.http.routers.clepto.tls.certresolver=letsencrypt"
+      - "traefik.http.services.clepto.loadbalancer.server.port=3000"
+```
+
+**Save:** `Ctrl+X`, `Y`, `Enter`
 
 ---
 
-## Step 12: Access Clepto OS! 🎉
-
-Open your browser and navigate to:
-
-```
-https://crm.clepto.io
-```
-
-(Replace `clepto.io` with your actual domain)
-
-You should see the **Clepto OS login page** with your branding!
-
-**Login with**:
-- Email: The email you created in Step 11
-- Password: The password you created in Step 11
-
----
-
-## 🔄 How to Make Changes (Auto-Deploy)
-
-Now that everything is set up, here's the magic part - **automatic deployments**!
-
-### Setup Auto-Deploy Script
-
-On your VPS, create a deployment script:
+## Step 9: Set Up Automated Backups
 
 ```bash
-# Create the script
-nano ~/deploy-clepto.sh
-```
+# Make script executable
+chmod +x /opt/clepto/scripts/backup-local.sh
 
-Paste this content:
-
-```bash
-#!/bin/bash
-
-echo "🚀 Deploying Clepto OS updates..."
-
-cd ~/Clepto-OS-v1
-
-echo "📥 Pulling latest code from GitHub..."
-git pull origin main
-
-echo "🐳 Rebuilding containers..."
-docker-compose -f infra/docker-compose.yml down
-docker-compose -f infra/docker-compose.yml up -d --build
-
-echo "🧹 Cleaning up old Docker images..."
-docker image prune -f
-
-echo "✅ Deployment complete!"
-docker-compose -f infra/docker-compose.yml ps
-```
-
-**Save**: `Ctrl + X`, then `Y`, then `Enter`
-
-Make it executable:
-
-```bash
-chmod +x ~/deploy-clepto.sh
-```
-
-### How to Deploy Updates
-
-Whenever you make changes in GitHub (via Claude or directly):
-
-1. **SSH into your VPS** (like in Step 1)
-2. **Run the deploy script**:
-   ```bash
-   ~/deploy-clepto.sh
-   ```
-3. **Wait 2-3 minutes** for rebuild
-4. **Done!** Your changes are live
-
----
-
-## 🎨 Making Changes via Claude/GitHub
-
-### Workflow:
-
-1. **Open your repo in VS Code / Claude Desktop**
-   - Clone the GitHub repo to your computer
-   - Make changes to files (colors, features, text, etc.)
-
-2. **Commit and Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Updated button colors"
-   git push origin main
-   ```
-
-3. **Deploy to VPS**
-   - SSH into VPS
-   - Run `~/deploy-clepto.sh`
-
-4. **See Changes Live!**
-   - Refresh `https://crm.clepto.io` in your browser
-
-### Common Files to Edit:
-
-**Change Colors/Branding:**
-- `apps/clepto-crm/packages/twenty-front/src/theme/colors.ts`
-- `apps/clepto-crm/packages/twenty-front/src/theme/constants.ts`
-
-**Change Logo:**
-- Replace files in `apps/clepto-crm/packages/twenty-front/public/logo/`
-
-**Change Text/Labels:**
-- Search for the text in the codebase and replace it
-
----
-
-## 🔐 Security Best Practices
-
-### Change Default SSH Port (Optional but Recommended)
-
-```bash
-nano /etc/ssh/sshd_config
-```
-
-Find the line `#Port 22` and change to `Port 2222` (or any number between 1024-65535)
-
-Restart SSH:
-```bash
-systemctl restart sshd
-```
-
-**⚠️ Don't forget to update UFW:**
-```bash
-ufw allow 2222/tcp
-ufw delete allow 22/tcp
-```
-
-**Next time you connect**:
-```bash
-ssh -p 2222 root@YOUR_VPS_IP
-```
-
-### Set Up Automatic Backups
-
-Create a backup script:
-
-```bash
-nano ~/backup-clepto.sh
-```
-
-Paste:
-
-```bash
-#!/bin/bash
-
-BACKUP_DIR=~/backups
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p $BACKUP_DIR
-
-echo "🗄️ Backing up databases..."
-
-docker-compose -f ~/Clepto-OS-v1/infra/docker-compose.yml exec -T postgres-crm pg_dump -U clepto clepto_crm > $BACKUP_DIR/crm_$DATE.sql
-
-docker-compose -f ~/Clepto-OS-v1/infra/docker-compose.yml exec -T postgres-mail pg_dump -U clepto clepto_mail > $BACKUP_DIR/mail_$DATE.sql
-
-# Keep only last 7 days of backups
-find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
-
-echo "✅ Backup complete: $BACKUP_DIR"
-ls -lh $BACKUP_DIR
-```
-
-Make executable:
-```bash
-chmod +x ~/backup-clepto.sh
-```
-
-Schedule daily backups (runs at 2 AM):
-```bash
+# Schedule daily backups at 2 AM
 crontab -e
+
+# Add this line (copy-paste):
+0 2 * * * /opt/clepto/scripts/backup-local.sh >> /var/log/clepto-backup.log 2>&1
 ```
 
-Add this line:
+**Save:** `Ctrl+X`, `Y`, `Enter`
+
+---
+
+## Step 10: Start Clepto OS
+
+```bash
+cd /opt/clepto/infra
+docker-compose up -d
 ```
-0 2 * * * /root/backup-clepto.sh >> /var/log/clepto-backup.log 2>&1
+
+**This will:**
+- Start your database
+- Build your application
+- Connect to Traefik for SSL
+
+**Wait 2-3 minutes** for everything to start.
+
+---
+
+## Step 11: Check if It's Working
+
+```bash
+# Check running containers
+docker ps | grep clepto
+
+# Check logs (should say "Server started")
+docker logs clepto-crm
+```
+
+If you see errors, copy them and ask for help!
+
+---
+
+## Step 12: Test in Browser
+
+Open: **https://crm.clepto.io**
+
+You should see:
+- ✅ Green padlock (SSL working)
+- ✅ Clepto CRM interface
+
+---
+
+## 🎉 You're Done!
+
+### What You Have Now:
+- ✅ Clepto OS running on crm.clepto.io
+- ✅ Database connected
+- ✅ SSL certificate auto-renewed
+- ✅ Daily backups at 2 AM
+- ✅ Email ready (Resend)
+
+### Next Steps:
+1. **Create Your Account:** First signup becomes admin
+2. **Import n8n Workflows:** Upload the 4 JSON files from `automation/n8n-workflows/` to your n8n
+3. **Enable 2FA:** Settings → Security
+
+---
+
+## 🆘 Troubleshooting
+
+### Can't access crm.clepto.io?
+
+**Check DNS:**
+```bash
+nslookup crm.clepto.io
+```
+Should show: `148.230.120.207`
+
+**Check Traefik:**
+```bash
+docker logs root-traefik |-1 | grep crm.clepto.io
+```
+
+**Check Clepto:**
+```bash
+docker logs clepto-crm --tail 50
+```
+
+### Database Connection Error?
+
+```bash
+# Test database connection
+docker exec -it postgres-16-alpine psql -U clepto -d clepto_os -c "SELECT 1;"
+```
+
+Should return: `1`
+
+### Need to Restart?
+
+```bash
+cd /opt/clepto/infra
+docker-compose restart
 ```
 
 ---
 
-## 🛠️ Useful Commands
+## 📝 Important Files You Created
 
-### Check Status of Services
-
-```bash
-cd ~/Clepto-OS-v1
-docker-compose -f infra/docker-compose.yml ps
-```
-
-### View Logs
-
-```bash
-# All services
-docker-compose -f infra/docker-compose.yml logs -f
-
-# Specific service
-docker-compose -f infra/docker-compose.yml logs -f clepto-crm
-```
-
-### Restart a Service
-
-```bash
-docker-compose -f infra/docker-compose.yml restart clepto-crm
-```
-
-### Stop All Services
-
-```bash
-docker-compose -f infra/docker-compose.yml down
-```
-
-### Start All Services
-
-```bash
-docker-compose -f infra/docker-compose.yml up -d
-```
-
-### Check Disk Space
-
-```bash
-df -h
-```
-
-### Check Memory Usage
-
-```bash
-free -h
-```
+Keep these safe:
+- **Secrets:** APP_SECRET, JWT_SECRET, SESSION_SECRET
+- **Database Password:** The one you chose in Step 2
+- **GitHub Token:** For deployments
 
 ---
 
-## 🚨 Troubleshooting
-
-### "Cannot connect to crm.clepto.io"
-
-**Check:**
-1. DNS records are correct (use [whatsmydns.net](https://whatsmydns.net))
-2. Services are running: `docker-compose ps`
-3. Firewall allows ports 80/443: `ufw status`
-
-### "502 Bad Gateway"
-
-**Solution:**
-```bash
-# Restart services
-cd ~/Clepto-OS-v1
-docker-compose -f infra/docker-compose.yml restart
-```
-
-### "Out of disk space"
-
-**Solution:**
-```bash
-# Clean up Docker
-docker system prune -a
-```
-
-### Services Won't Start
-
-**Check logs:**
-```bash
-docker-compose -f infra/docker-compose.yml logs
-```
-
-Look for error messages and search them online or contact support.
-
----
-
-## 📞 Getting Help
-
-If you get stuck:
-
-1. **Check the logs** (see Useful Commands above)
-2. **Search the error message** on Google/Stack Overflow
-3. **Contact support**: support@clepto.io
-4. **GitHub Issues**: Open an issue in your repository
-
----
-
-## 🎓 What You've Accomplished
-
-Congratulations! You've:
-
-✅ Set up a secure VPS
-✅ Installed Docker and Docker Compose
-✅ Configured DNS and SSL
-✅ Deployed Clepto OS
-✅ Set up automatic deployments from GitHub
-✅ Configured backups
-
-**You're now running your own self-hosted business platform!** 🎉
-
----
-
-## 📚 Next Steps
-
-1. **Customize branding** - Change colors, logo, text
-2. **Add team members** - Create user accounts
-3. **Import data** - Add contacts, companies, projects
-4. **Set up n8n workflows** - Automate tasks
-5. **Configure email** - Set up SMTP for sending emails
-
-Check out other guides in the `docs/` folder for more information!
-
----
-
-**Need help?** Email: support@clepto.io
-
-**Made with ❤️ by Clepto.io**
+**Need help? Check `docs/USER_GUIDE.md` for daily operations!**

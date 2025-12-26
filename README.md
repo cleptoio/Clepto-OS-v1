@@ -33,28 +33,15 @@ All in one beautifully designed, self-hosted platform with **full control over y
 
 ---
 
-## � Documentation Hub
+## 📚 Documentation
 
-Everything you need to build, deploy, and secure Clepto OS.
+**Quick Start:**
+- **[Complete Setup Guide](docs/SETUP.md)** - **START HERE!** Everything you need in one place
 
-### 🏁 Getting Started
-- **[Quick Start Guide](docs/QUICKSTART.md)** - For developers (Local setup)
-- **[GitHub Setup](docs/SETUP-GITHUB.md)** - Configure keys & secrets for deployment
-- **[Secrets Setup](docs/SETUP-SECRETS.md)** - Generate secure production keys
-
-### 🚀 Deployment
-- **[Auto-Deploy Guide](docs/SETUP-EASYPANEL.md)** - **Recommended**: Set up Easypanel
-- **[Manual Deployment](docs/DEPLOY.md)** - Step-by-step for bare VPS
-- **[Complete VPS Setup](docs/SETUP.md)** - From zero to hero (for beginners)
-
-### 🛡️ Security
-- **[Security Audit Report](SECURITY-AUDIT-REPORT.md)** - Latest security status
-- **[VPS Hardening](docs/SECURITY.md)** - Firewall, UFW, Fail2Ban setup
-- **[App Security](docs/APP-SECURITY.md)** - 2FA, RBAC, and Audit Logs policy
-
-### ⚙️ Operations
-- **[User Guide](docs/USER_GUIDE.md)** - Daily workflow: updates, rollbacks, monitoring
-- **[Architecture](docs/ARCHITECTURE.md)** - System design deep dive
+**Additional Docs:**
+- **[Security Audit](SECURITY-AUDIT-REPORT.md)** - Security status & compliance
+- **[User Guide](docs/USER_GUIDE.md)** - Daily operations after deployment
+- **[Architecture](docs/ARCHITECTURE.md)** - Technical deep dive
 
 ---
 
