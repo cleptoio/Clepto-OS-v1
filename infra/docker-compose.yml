@@ -109,54 +109,79 @@ services:
       - "traefik.http.routers.api.priority=100"
 
   # ------------------------------------------
-  # CLEPTO CRM - Web Application
+  # TWENTY CRM - Server (Main Application)
   # ------------------------------------------
-  # Serves the static frontend for now
-  # Backend will be integrated via /api
-
-  clepto-crm:
-    image: nginx:alpine
-    container_name: clepto-crm
+  twenty-server:
+    image: twentycrm/twenty:latest
+    container_name: twenty-server
     restart: unless-stopped
+    environment:
+      NODE_PORT: 3000
+      PG_DATABASE_URL: postgres://${PG_USER:-clepto}:${PG_PASSWORD}@clepto-db:5432/twenty
+      SERVER_URL: https://crm.clepto.io
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@clepto-redis:6379
+      APP_SECRET: ${APP_SECRET}
+      STORAGE_TYPE: local
     volumes:
-      - ../apps/clepto-crm/public:/usr/share/nginx/html:ro
+      - clepto-uploads:/app/packages/twenty-server/.local-storage
     networks:
       - clepto-internal
-      - root_default # YOUR existing Traefik network
+      - root_default
+    depends_on:
+      clepto-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
-      # IMPORTANT: Tell Traefik which network to use
       - "traefik.docker.network=root_default"
-
-      # HTTP router (redirect)
-      - "traefik.http.routers.crm.rule=Host(`crm.clepto.io`)"
-      - "traefik.http.routers.crm.entrypoints=web"
-
-      # HTTPS router
-      - "traefik.http.routers.crm-secure.rule=Host(`crm.clepto.io`)"
-      - "traefik.http.routers.crm-secure.entrypoints=websecure"
-      - "traefik.http.routers.crm-secure.tls=true"
-      - "traefik.http.routers.crm-secure.tls.certresolver=mytlschallenge"
-
-      # Service definition
-      - "traefik.http.services.crm.loadbalancer.server.port=80"
-
-      # Security headers
-      - "traefik.http.middlewares.clepto-headers.headers.stsSeconds=31536000"
-      - "traefik.http.middlewares.clepto-headers.headers.stsIncludeSubdomains=true"
-      - "traefik.http.middlewares.clepto-headers.headers.frameDeny=true"
-      - "traefik.http.middlewares.clepto-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.routers.crm-secure.middlewares=clepto-headers"
+      - "traefik.http.routers.twenty.rule=Host(`crm.clepto.io`)"
+      - "traefik.http.routers.twenty.entrypoints=websecure"
+      - "traefik.http.routers.twenty.tls=true"
+      - "traefik.http.routers.twenty.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.twenty.loadbalancer.server.port=3000"
+      - "traefik.http.routers.twenty.priority=10"
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthz || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 20
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
-    healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+          cpus: '2'
+          memory: 2G
+
+  # ------------------------------------------
+  # TWENTY CRM - Worker (Background Jobs)
+  # ------------------------------------------
+  twenty-worker:
+    image: twentycrm/twenty:latest
+    container_name: twenty-worker
+    restart: unless-stopped
+    command: [ "yarn", "worker:prod" ]
+    environment:
+      PG_DATABASE_URL: postgres://${PG_USER:-clepto}:${PG_PASSWORD}@clepto-db:5432/twenty
+      SERVER_URL: https://crm.clepto.io
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@clepto-redis:6379
+      APP_SECRET: ${APP_SECRET}
+      STORAGE_TYPE: local
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+    volumes:
+      - clepto-uploads:/app/packages/twenty-server/.local-storage
+    networks:
+      - clepto-internal
+    depends_on:
+      clepto-db:
+        condition: service_healthy
+      twenty-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
 # ============================================
 # DEPLOYMENT NOTES
