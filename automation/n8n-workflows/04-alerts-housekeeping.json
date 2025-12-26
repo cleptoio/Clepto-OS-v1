@@ -1,0 +1,300 @@
+{
+    "name": "Alerts & Housekeeping",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 6 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "daily-cron",
+            "name": "Daily - 6 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.CRM_API_URL}}/api/invoices/overdue",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "=Bearer {{$env.CRM_API_KEY}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch-overdue-invoices",
+            "name": "Fetch Overdue Invoices",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                450,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.length}}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "id": "if-overdue-exists",
+            "name": "IF Overdue Invoices Exist",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+                "text": "=⚠️ OVERDUE INVOICES ALERT\n\nYou have {{$node[\"Fetch Overdue Invoices\"].json.length}} overdue invoices:\n\n{{$node[\"Fetch Overdue Invoices\"].json.map(inv => `• ${inv.clientName}: $${inv.amount} (Due: ${inv.dueDate})`).join('\\n')}}\n\n🔗 View in CRM: {{$env.CRM_DOMAIN}}/invoices"
+            },
+            "id": "alert-overdue-invoices",
+            "name": "Alert - Overdue Invoices",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                850,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.CRM_API_URL}}/api/tasks/stale",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "daysInactive",
+                            "value": "7"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch-stale-tasks",
+            "name": "Fetch Stale Tasks",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                450,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.length}}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "id": "if-stale-tasks-exist",
+            "name": "IF Stale Tasks Exist",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.MAIL_DOMAIN}}/api/v1/send",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "to",
+                            "value": "={{$item.assigneeEmail}}"
+                        },
+                        {
+                            "name": "subject",
+                            "value": "Reminder: Task needs attention"
+                        },
+                        {
+                            "name": "template",
+                            "value": "task-reminder"
+                        },
+                        {
+                            "name": "data",
+                            "value": "={{$item}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "notify-assignees",
+            "name": "Notify Assignees",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                850,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "command": "=cd /root/Clepto-OS-v1 && /root/Clepto-OS-v1/scripts/backup.sh"
+            },
+            "id": "trigger-backup",
+            "name": "Trigger Database Backup",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.MAIL_DOMAIN}}/api/v1/send",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "to",
+                            "value": "={{$env.ADMIN_EMAIL}}"
+                        },
+                        {
+                            "name": "subject",
+                            "value": "=Daily Backup Completed - {{$now.format('YYYY-MM-DD')}}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "=Backup completed successfully at {{$now.format('HH:mm')}}.\n\nOutput:\n{{$node[\"Trigger Database Backup\"].json.stdout}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "confirm-backup",
+            "name": "Confirm Backup",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                650,
+                600
+            ]
+        }
+    ],
+    "connections": {
+        "Daily - 6 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Overdue Invoices",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch Stale Tasks",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Trigger Database Backup",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Overdue Invoices": {
+            "main": [
+                [
+                    {
+                        "node": "IF Overdue Invoices Exist",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Overdue Invoices Exist": {
+            "main": [
+                [
+                    {
+                        "node": "Alert - Overdue Invoices",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Stale Tasks": {
+            "main": [
+                [
+                    {
+                        "node": "IF Stale Tasks Exist",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Stale Tasks Exist": {
+            "main": [
+                [
+                    {
+                        "node": "Notify Assignees",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Database Backup": {
+            "main": [
+                [
+                    {
+                        "node": "Confirm Backup",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2025-12-26T00:00:00.000Z",
+    "versionId": "1"
+}

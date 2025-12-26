@@ -1,0 +1,400 @@
+You are my senior full‑stack engineer, solution architect, and product designer in one.
+
+## 🎯 Goal
+
+Build **Clepto OS** – a self‑hosted, white‑label **CRM + ERP + HR + Docs + Email** platform for my agency and SME clients.
+
+Use these open-source projects ONLY as INTERNAL building blocks (no user-facing mention of them anywhere):
+
+- Core CRM engine: https://github.com/twentyhq/twenty
+- Email/marketing engine: https://github.com/Notifuse/notifuse
+- Infra/hosting patterns: Easypanel + Docker + Traefik
+
+I have an **EMPTY GitHub repo** for you to work in:
+👉 `https://github.com/USERNAME/clepto-os`  ← (replace with my real repo)
+
+Your job:  
+**Design the architecture + implement the code + document everything**, so I can:
+
+1. Run Clepto OS locally via Docker.
+2. Deploy to my existing VPS via Easypanel + Traefik.
+3. Onboard multiple SME clients easily.
+
+---
+
+## 👤 Context About Me
+
+- I run an AI automation agency: **Clepto.io**.
+- I am an advanced n8n + API + infra user, but I don’t want to waste time wiring boilerplate.
+- I want **ONE internal portal** for:
+  - My team
+  - My agency operations
+  - And later, multiple SME clients
+
+I will provide:
+
+- Clepto logo (SVG/PNG)
+- Domain (e.g., `crm.clepto.io`)
+- VPS with:
+  - Ubuntu 24.04
+  - Docker installed
+  - Traefik running
+  - n8n already running
+
+---
+
+## 🧱 High-Level Architecture Requirements
+
+Use my blank repo as a **mono‑repo**. Propose and then implement something like:
+
+/clepto-os
+/apps
+/clepto-crm → main web app (CRM/ERP/HR/Docs UI & API; based on Twenty)
+/clepto-mail → Notifuse instance or integration layer
+/infra
+docker-compose.yml
+traefik.yml / labels
+env/ (.env.example, config templates)
+/automation
+n8n-workflows/ → JSON exports for automations
+/docs
+SETUP.md → local dev setup
+DEPLOY.md → VPS/Easypanel deployment
+ARCHITECTURE.md → architecture & assumptions
+SECURITY.md → security & backup strategy
+TENANT.md → how to onboard a new SME client
+
+
+Guidelines:
+
+- Keep the repo structure **clean, logical, and documented**.
+- You can adjust structure, but explain decisions in `ARCHITECTURE.md`.
+- Use Docker + docker-compose for **all services**.
+- Traefik acts as reverse proxy + SSL termination.
+- No unnecessary complexity: design for a **solo founder/devops** to maintain.
+
+---
+
+## 🎨 Branding & UI (CRITICAL)
+
+**Core theme:**
+
+- Background (primary): `#0e172f` (dark, deep blue)
+- Accent / primary action color: `#0bd7d4`
+- Use `#0bd7d4` heavily in:
+  - Primary buttons
+  - Key highlights
+  - Charts & progress bars
+  - Links & focus states
+- Gradients:
+  - Subtle dark gradients using `#0e172f` → slightly lighter blue
+  - Accent gradients using `#0bd7d4` with slight teal variations
+- Typography:
+  - Clean, modern, sans-serif (e.g., Inter, DM Sans, or similar)
+  - Comfortable line height, good readability on dark background
+- Theme:
+  - **Dark mode only** for v1 (no light theme)
+  - UI must be: **simple, elegant, professional, modern** (NOT flashy, NOT cluttered)
+
+**Logo usage (I will provide assets):**
+
+- Use my Clepto logo for:
+  - App header / sidebar
+  - Login screen
+  - Favicon
+  - Emails (header)
+- Provide easy config for:
+  - `logoLight`, `logoDark`, `favicon` paths via env/config if needed.
+
+**White-labeling (ABSOLUTE REQUIREMENT):**
+
+- Inside the product UI, there must be **NO mention** of:
+  - “Twenty”
+  - “Notifuse”
+  - “Docker”
+  - Any other underlying open-source tool names
+- User-facing labels must ONLY use:
+  - “Clepto”
+  - “Clepto OS”
+  - “Clepto CRM”, “Clepto ERP”, “Clepto HR”, etc. where sensible
+- It is OK to mention underlying tools in:
+  - Code comments
+  - Internal docs in `/docs`
+  - ENV variable names
+
+---
+
+## 🧩 Core Product Concept
+
+**Clepto OS** is one portal (`crm.clepto.io`) that combines:
+
+- CRM (Contacts, Companies, Deals, Activities)
+- Projects & Tasks (Kanban + timelines)
+- HR OS (Employees, roles, leaves, onboarding checklists)
+- Finance-lite (Invoices, revenue tracking)
+- Internal Docs/SOP repository
+- Email & Campaigns section (powered by Notifuse, but white-labeled)
+- Backend automations via n8n (no direct UI for n8n)
+
+---
+
+## 👥 Roles & Access Control
+
+Implement role-based access & per-record visibility. At minimum:
+
+- **Admin (me)**:
+  - See everything across all modules and clients
+  - Manage roles, permissions, configurations
+  - View revenue, invoices, contracts
+- **Sales**:
+  - Deals, pipelines, activities, their contacts
+  - Restricted client info (no full financials)
+- **Marketing**:
+  - Campaigns, segments, email performance analytics
+  - Access to “Email & Campaigns” section
+- **HR**:
+  - Employees, roles, leaves, onboarding tasks
+- **Operations / Projects**:
+  - Projects, tasks, timelines, workloads
+- **Developer / Tech**:
+  - Technical board (bugs, tech backlog)
+  - Read-only or limited access elsewhere
+
+Rules:
+
+- User sees data based on:
+  - Role
+  - Ownership (assigned to them)
+  - Optional: company/client scope
+- Revenue, invoices, contracts:
+  - Visible only to Admin (and later a “Finance” role, which can be added later).
+
+---
+
+## 📦 Modules & Features
+
+Use/extend the underlying CRM capabilities, but expose them as **Clepto modules**:
+
+### 1) CRM
+
+- **Contacts**
+  - Basic contact info, tags, notes, activity history.
+- **Companies**
+  - Company info, linked contacts, deals, projects.
+- **Deals / Pipelines**
+  - Kanban pipelines for sales/funnels.
+  - Configurable stages (e.g., Lead, Discovery, Proposal, Won, Lost).
+  - Attach tasks, notes, files.
+
+### 2) Projects & Tasks (with Drag & Drop)
+
+Goal: Simple but powerful **project management** inside the same tool.
+
+- **Projects**
+  - Fields: name, client, status, owner, due date, priority.
+  - Views:
+    - List view (sortable, filterable)
+    - Kanban view based on status (e.g., Backlog, In Progress, Review, Done)
+- **Tasks**
+  - Fields: project, assignee, due date, status, priority, description.
+  - Attachments and comments.
+  - Linked to deals/clients if relevant.
+
+**Drag & Drop behavior (IMPORTANT):**
+
+- In Kanban board view:
+  - Drag project cards between columns (status changes).
+  - Drag task cards between columns (status changes).
+- Drag-and-drop rules:
+  - On drop, update status in the backend immediately.
+  - Show optimistic UI update + toast notification (“Status updated”).
+  - Handle basic error: if backend fails, revert card and show error toast.
+
+**Optional nice-to-haves (if feasible without complexity):**
+
+- Simple swimlanes (e.g., by assignee or priority).
+- Quick-create task on any column (inline add).
+
+UI expectations:
+
+- Clean columns with subtle cards.
+- Good use of `#0e172f` background and `#0bd7d4` as accent.
+- Clear hover states for drag targets.
+
+### 3) HR OS
+
+- **Employees**
+  - Fields: name, role, start date, status (active/inactive), manager.
+- **Roles**
+  - Business role (e.g., Sales, HR, Dev).
+  - Map to permission groups.
+- **Leaves / Time Off**
+  - Requests, approvals, balances.
+- **Onboarding Checklists**
+  - Template-based onboarding flows (e.g., “New SDR”, “New Developer”).
+  - Checklist tasks assigned to HR or manager.
+
+### 4) Finance-lite
+
+Simple but practical:
+
+- **Invoices**
+  - Fields: client, amount, currency, due date, status (draft/sent/paid/overdue), items.
+  - Actions:
+    - Generate invoice PDF
+    - Mark as sent/paid
+    - Email via Notifuse
+- **Revenue**
+  - Revenue per client
+  - Monthly breakdown
+  - Basic charts on dashboard
+
+### 5) Docs & SOPs
+
+Internal document repository:
+
+- **Docs**
+  - SOPs, templates, internal policies.
+  - Organized by category (HR, Sales, Ops, Tech).
+- Features:
+  - Rich-text editor (simple, not overkill).
+  - Ability to mark a doc as “Template” (used later for automation).
+  - Search by title/content.
+
+---
+
+## 📩 Email & Campaigns (via Notifuse, but white-labeled)
+
+Implement an “Email & Campaigns” section inside Clepto OS:
+
+- Either:
+  - Embedded Notifuse UI via iframe/SSO, or
+  - Deep links into Notifuse, but appearing as part of Clepto OS navigation.
+- Use Notifuse for:
+  - Newsletters (internal lists, client lists).
+  - Transactional emails:
+    - New user welcome
+    - Invoice generated/sent
+    - Important project updates
+
+**All external references should look like Clepto emails**, with my logo and colors.
+
+No user-facing mention of “Notifuse” in UI.
+
+---
+
+## 🤖 n8n – Backend Automation Only
+
+I already run n8n on the same VPS. Use n8n as the backend brain.  
+**No end-users should see n8n; it’s purely backend.**
+
+Key workflows:
+
+1. **New User Added**
+   - Trigger: Webhook from Clepto when a new user is created.
+   - Actions:
+     - Send welcome email via Notifuse.
+     - Post Telegram/email notification to me.
+     - Optionally assign default onboarding checklist/tasks.
+
+2. **Scheduled Reports**
+   - Cron: daily/weekly/monthly.
+   - Fetch metrics from Clepto API:
+     - Revenue
+     - Tasks completed
+     - New projects
+     - HR stats
+   - Generate a PDF/HTML summary (using a simple templater + optional LLM).
+   - Email to me (and/or key stakeholders) via Notifuse.
+
+3. **Document Generation (Proposals, SOPs, Invoices, Reports)**
+   - Trigger: frontend calls a Clepto API endpoint, which forwards to n8n webhook.
+   - Parameters: `type` (proposal/invoice/report), `templateId`, `recordId`.
+   - Steps:
+     - n8n fetches data from Clepto API (e.g., client info, amounts, tasks).
+     - Fill a template (Jinja/Handlebars/LLM-generated).
+     - Generate PDF.
+     - Save file somewhere accessible (S3/local storage).
+     - Update Clepto record with `documentUrl`.
+     - Return success response to frontend.
+   - Frontend:
+     - Shows toast “Document generated” + download link.
+
+4. **Housekeeping & Alerts**
+   - Overdue invoices:
+     - Daily job: find overdue invoices → send email + Telegram alert.
+   - Stale tasks/projects:
+     - Identify tasks with no activity for N days → notify assignee.
+   - Backups:
+     - Trigger DB backups (or delegate to cron/shell scripts, but can integrate with n8n if needed).
+
+**Important:**  
+- Popups/notifications inside the UI are handled by Clepto frontend (WebSocket/toast) – NOT n8n.
+- n8n only deals with **emails, PDFs, background jobs, housekeeping**.
+
+---
+
+## 🔐 Security & DevOps Expectations
+
+- All internal services behind Traefik.
+- Only 80/443 exposed publicly.
+- No direct DB ports exposed.
+- Provide:
+  - UFW rules recommendation.
+  - Fail2Ban (or equivalent) suggestion.
+  - Backup strategy (pg_dump, retention policy).
+- Local dev:
+  - One command to spin up full stack: `docker compose up` or `make dev`.
+- VPS deployment:
+  - Clear `DEPLOY.md` for:
+    - Connecting repo to Easypanel.
+    - Configuring environment variables.
+    - Rolling out updates (pull, rebuild, restart).
+
+---
+
+## 🧪 UX Principles
+
+- UI must be:
+  - Clean, minimal, non-noisy.
+  - Clear hierarchy (side nav, top bar, content).
+  - Consistent spacing, typography, and components.
+- Use our colors consistently:
+  - Background: `#0e172f`
+  - Accent: `#0bd7d4`
+- Provide:
+  - Toast notifications for actions (create/update/delete).
+  - Clear confirmations for destructive actions.
+  - Empty states with helpful messaging.
+
+---
+
+## ✅ Deliverables Summary
+
+You will:
+
+1. Propose the architecture & folder structure in `ARCHITECTURE.md`.
+2. Implement:
+   - Mono-repo structure.
+   - Clepto OS app (customized from Twenty).
+   - Notifuse-based email layer (white-labeled).
+   - Docker + Traefik setup.
+   - Basic n8n workflow definitions (documented, JSON exports).
+3. Implement key modules:
+   - CRM, Projects & Tasks (with drag-and-drop), HR, Finance-lite, Docs.
+4. Implement:
+   - Role-based access control.
+   - Integration points for n8n (webhooks, API endpoints).
+5. Provide documentation:
+   - `SETUP.md` – local dev
+   - `DEPLOY.md` – VPS/Easypanel
+   - `TENANT.md` – onboarding new SME clients
+   - `SECURITY.md` – firewall, backups, monitoring
+   - `ARCHITECTURE.md` – overview + assumptions
+
+If any requirement is ambiguous:
+
+- Make a reasonable assumption.
+- Document it clearly in `ARCHITECTURE.md` under “Assumptions”.
+
+Design for **simplicity, maintainability, and clarity**. Clepto OS should be a product I can confidently demo to clients and run for my own agency without touching the low-level plumbing every day.

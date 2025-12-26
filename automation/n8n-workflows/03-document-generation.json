@@ -1,0 +1,255 @@
+{
+    "name": "Document Generation",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "clepto/generate-document",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook - Generate Document",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "clepto-document-generation"
+        },
+        {
+            "parameters": {
+                "url": "={{$env.CRM_API_URL}}/api/{{$json.type}}/{{$json.recordId}}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "=Bearer {{$env.CRM_API_KEY}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch-record-data",
+            "name": "Fetch Record Data",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "text",
+                "options": {
+                    "systemMessage": "You are a document generator. Create professional business documents based on the template and data provided."
+                },
+                "text": "=Generate a {{$node[\"Webhook - Generate Document\"].json.type}} document using this data:\n\n{{$json}}\n\nFormat: Professional, branded for Clepto, include all relevant details.",
+                "options": {}
+            },
+            "id": "generate-content-ai",
+            "name": "Generate Content (AI)",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    @page { margin: 40px; }\n    body { font-family: 'Inter', sans-serif; color: #0e172f; }\n    .header { background: #0e172f; color: #fff; padding: 30px; margin-bottom: 30px; }\n    .header h1 { margin: 0; color: #0bd7d4; }\n    .content { padding: 20px; line-height: 1.6; }\n    .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>Clepto</h1>\n    <p>{{$now.format('MMMM DD, YYYY')}}</p>\n  </div>\n  <div class=\"content\">\n    {{$node[\"Generate Content (AI)\"].json.response}}\n  </div>\n  <div class=\"footer\">\n    <p>Clepto.io | contact@clepto.io</p>\n  </div>\n</body>\n</html>",
+                "options": {}
+            },
+            "id": "format-pdf-html",
+            "name": "Format PDF HTML",
+            "type": "n8n-nodes-base.html",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "htmlToPdf",
+                "html": "={{$node[\"Format PDF HTML\"].json}}",
+                "options": {
+                    "pageSize": "A4",
+                    "marginTop": 10,
+                    "marginBottom": 10,
+                    "marginLeft": 10,
+                    "marginRight": 10
+                }
+            },
+            "id": "convert-to-pdf",
+            "name": "Convert to PDF",
+            "type": "n8n-nodes-base.html",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fileName": "={{$node[\"Webhook - Generate Document\"].json.type}}_{{$node[\"Webhook - Generate Document\"].json.recordId}}_{{$now.format('YYYYMMDD')}}.pdf",
+                "data": "={{$node[\"Convert to PDF\"].binary.data}}",
+                "options": {}
+            },
+            "id": "save-to-storage",
+            "name": "Save to Storage",
+            "type": "n8n-nodes-base.writeFile",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.CRM_API_URL}}/api/{{$node[\"Webhook - Generate Document\"].json.type}}/{{$node[\"Webhook - Generate Document\"].json.recordId}}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "=Bearer {{$env.CRM_API_KEY}}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "documentUrl",
+                            "value": "=/storage/documents/{{$node[\"Save to Storage\"].json.fileName}}"
+                        },
+                        {
+                            "name": "documentGeneratedAt",
+                            "value": "={{$now.toISO()}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "update-record",
+            "name": "Update Record with Document URL",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ {\"success\": true, \"documentUrl\": $node[\"Save to Storage\"].json.fileName, \"message\": \"Document generated successfully\"} }}",
+                "options": {}
+            },
+            "id": "respond-webhook",
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1650,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook - Generate Document": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Record Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Record Data": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Content (AI)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Content (AI)": {
+            "main": [
+                [
+                    {
+                        "node": "Format PDF HTML",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format PDF HTML": {
+            "main": [
+                [
+                    {
+                        "node": "Convert to PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Convert to PDF": {
+            "main": [
+                [
+                    {
+                        "node": "Save to Storage",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Save to Storage": {
+            "main": [
+                [
+                    {
+                        "node": "Update Record with Document URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Record with Document URL": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2025-12-26T00:00:00.000Z",
+    "versionId": "1"
+}

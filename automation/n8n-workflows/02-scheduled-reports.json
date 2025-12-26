@@ -1,0 +1,177 @@
+{
+    "name": "Scheduled Reports",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * 1"
+                        }
+                    ]
+                }
+            },
+            "id": "cron-trigger",
+            "name": "Schedule - Weekly Monday 8 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.CRM_API_URL}}/api/reports/metrics",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "period",
+                            "value": "weekly"
+                        },
+                        {
+                            "name": "startDate",
+                            "value": "={{$now.minus({days: 7}).format('YYYY-MM-DD')}}"
+                        },
+                        {
+                            "name": "endDate",
+                            "value": "={{$now.format('YYYY-MM-DD')}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch-crm-metrics",
+            "name": "Fetch CRM Metrics",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "text",
+                "options": {
+                    "systemMessage": "You are a business analyst. Create a concise weekly summary report from the provided metrics data."
+                },
+                "text": "=Create a weekly business summary report from this data:\n\n{{$json}}",
+                "options": {}
+            },
+            "id": "generate-report-ai",
+            "name": "Generate Report (AI)",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: 'Inter', sans-serif; background: #0e172f; color: #eaeaea; padding: 40px; }\n    .header { background: linear-gradient(135deg, #0bd7d4, #0e172f); padding: 30px; border-radius: 10px; }\n    .header h1 { margin: 0; color: #fff; }\n    .content { background: #1a2332; padding: 30px; margin-top: 20px; border-radius: 10px; }\n    .metric { display: inline-block; margin: 15px; padding: 20px; background: #0e172f; border-left: 4px solid #0bd7d4; border-radius: 5px; }\n    .metric-value { font-size: 32px; font-weight: bold; color: #0bd7d4; }\n    .metric-label { font-size: 14px; color: #aaa; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>📊 Clepto OS - Weekly Report</h1>\n    <p>Week of {{$now.minus({days: 7}).format('MMM DD')}} - {{$now.format('MMM DD, YYYY')}}</p>\n  </div>\n  <div class=\"content\">\n    <h2>Summary</h2>\n    {{$node[\"Generate Report (AI)\"].json.response}}\n    \n    <h2>Key Metrics</h2>\n    <div class=\"metric\">\n      <div class=\"metric-value\">{{$json.revenue}}</div>\n      <div class=\"metric-label\">Revenue</div>\n    </div>\n    <div class=\"metric\">\n      <div class=\"metric-value\">{{$json.newDeals}}</div>\n      <div class=\"metric-label\">New Deals</div>\n    </div>\n    <div class=\"metric\">\n      <div class=\"metric-value\">{{$json.tasksCompleted}}</div>\n      <div class=\"metric-label\">Tasks Completed</div>\n    </div>\n    <div class=\"metric\">\n      <div class=\"metric-value\">{{$json.newProjects}}</div>\n      <div class=\"metric-label\">New Projects</div>\n    </div>\n  </div>\n</body>\n</html>",
+                "options": {}
+            },
+            "id": "format-html-email",
+            "name": "Format HTML Email",
+            "type": "n8n-nodes-base.html",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$env.MAIL_DOMAIN}}/api/v1/send",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "to",
+                            "value": "={{$env.ADMIN_EMAIL}}"
+                        },
+                        {
+                            "name": "subject",
+                            "value": "=Clepto OS Weekly Report - {{$now.format('MMM DD, YYYY')}}"
+                        },
+                        {
+                            "name": "html",
+                            "value": "={{$node[\"Format HTML Email\"].json}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "send-email-report",
+            "name": "Send Email Report",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1050,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule - Weekly Monday 8 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch CRM Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch CRM Metrics": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Report (AI)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Report (AI)": {
+            "main": [
+                [
+                    {
+                        "node": "Format HTML Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format HTML Email": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2025-12-26T00:00:00.000Z",
+    "versionId": "1"
+}

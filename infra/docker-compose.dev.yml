@@ -1,0 +1,98 @@
+version: '3.8'
+
+# ============================================
+# Clepto OS - Development Environment
+# ============================================
+# Use this for local development with hot-reload
+
+networks:
+  clepto-network:
+    driver: bridge
+
+volumes:
+  postgres-crm-data:
+  postgres-mail-data:
+  redis-data:
+
+
+services:
+  # ------------------------------------------
+  # POSTGRESQL - CRM Database
+  # ------------------------------------------
+  postgres-crm:
+    image: postgres:16-alpine
+    container_name: clepto-postgres-crm-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432" # Exposed for debugging
+    environment:
+      POSTGRES_DB: clepto_crm_dev
+      POSTGRES_USER: clepto
+      POSTGRES_PASSWORD: dev_password_123
+    volumes:
+      - postgres-crm-data:/var/lib/postgresql/data
+    networks:
+      - clepto-network
+
+  # ------------------------------------------
+  # POSTGRESQL - Mail Database
+  # ------------------------------------------
+  postgres-mail:
+    image: postgres:16-alpine
+    container_name: clepto-postgres-mail-dev
+    restart: unless-stopped
+    ports:
+      - "5433:5432" # Different port to avoid conflicts
+    environment:
+      POSTGRES_DB: clepto_mail_dev
+      POSTGRES_USER: clepto
+      POSTGRES_PASSWORD: dev_password_123
+    volumes:
+      - postgres-mail-data:/var/lib/postgresql/data
+    networks:
+      - clepto-network
+
+  # ------------------------------------------
+  # REDIS - Cache & Queue
+  # ------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: clepto-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass dev_redis_123
+    volumes:
+      - redis-data:/data
+    networks:
+      - clepto-network
+
+  # ------------------------------------------
+  # MAILHOG - Email Testing
+  # ------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: clepto-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - clepto-network
+
+# ============================================
+# DEVELOPMENT NOTES
+# ============================================
+# - All ports are exposed for easy debugging
+# - Use weak passwords (only for local dev!)
+# - MailHog captures all outgoing emails
+#   View at: http://localhost:8025
+#
+# To run the CRM/Mail apps in development:
+# 1. Start these services: docker-compose -f docker-compose.dev.yml up -d
+# 2. Run apps locally with npm/go for hot-reload
+#
+# Database URLs for local development:
+# CRM:  postgresql://clepto:dev_password_123@localhost:5432/clepto_crm_dev
+# Mail: postgresql://clepto:dev_password_123@localhost:5433/clepto_mail_dev
+# Redis: redis://:dev_redis_123@localhost:6379
