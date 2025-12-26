@@ -21,10 +21,16 @@ db.query('SELECT NOW()', (err, res) => {
     }
 });
 
-// Routes
+// Import Routes
+const authRoutes = require('./src/routes/auth');
+
+// Use Routes
+app.use('/api/auth', authRoutes);
+
 app.get('/', (req, res) => {
     res.json({ message: 'Clepto API v1', status: 'online' });
 });
+
 
 app.listen(port, () => {
     console.log(`🚀 Clepto API running on port ${port}`);

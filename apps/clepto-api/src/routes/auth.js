@@ -1,0 +1,9 @@
+const express = require('express');
+const router = express.router();
+const authController = require('../controllers/authController');
+const authMiddleware = require('../middleware/auth'); // We need to create this middleware too
+
+router.post('/login', authController.login);
+router.get('/me', authMiddleware, authController.getMe);
+
+module.exports = router;
