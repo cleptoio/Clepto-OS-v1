@@ -57,7 +57,27 @@ Built on top of [Twenty.crm](https://github.com/twentyhq/twenty) and [Notifuse](
 
 ## 🚀 Quick Start
 
-> **For Non-Technical Users**: Follow the [Complete Setup Guide](docs/SETUP.md) for step-by-step instructions with screenshots.
+> **✨ NEW: View the Stunning UI Now!**
+
+### See the Clepto CRM (No Setup Required)
+
+**Windows**:
+```cmd
+# Double-click this file or run in terminal:
+start-crm.bat
+```
+
+**Mac/Linux**:
+```bash
+chmod +x start-crm.sh
+./start-crm.sh
+```
+
+Then open: **http://localhost:8000** 🎉
+
+### Deploy to VPS (Full Setup)
+
+**For Non-Technical Users**: Follow the [Complete Setup Guide](docs/SETUP.md) for step-by-step instructions with screenshots.
 
 ### Prerequisites
 - A VPS (Ubuntu 24.04) with at least 2GB RAM
