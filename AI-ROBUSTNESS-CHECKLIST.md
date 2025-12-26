@@ -1,51 +1,99 @@
-# 🛡️ AI Robustness Checklist
+# 🛡️ AI Robustness Checklist (60-Point Enterprise Edition)
 
-**Purpose:** Use this checklist to validate ANY AI-generated code before deployment.  
-**How to use:** Paste this to your AI assistant and ask: *"Review my code against this checklist and report any issues."*
-
----
-
-## 📋 Quick Summary
-
-| Category | Items | Priority |
-|----------|-------|----------|
-| [1. Secrets & API Keys](#1-secrets--api-keys) | 5 | 🔴 CRITICAL |
-| [2. Database Security](#2-database-security) | 6 | 🔴 CRITICAL |
-| [3. Authentication & Authorization](#3-authentication--authorization) | 8 | 🔴 CRITICAL |
-| [4. Input Validation & XSS](#4-input-validation--xss) | 7 | 🔴 CRITICAL |
-| [5. API & Rate Limiting](#5-api--rate-limiting) | 6 | 🟡 HIGH |
-| [6. Dependencies & Packages](#6-dependencies--packages) | 5 | 🟡 HIGH |
-| [7. Error Handling & Logging](#7-error-handling--logging) | 6 | 🟡 HIGH |
-| [8. Infrastructure & Docker](#8-infrastructure--docker) | 8 | 🟡 HIGH |
-| [9. Backup & Recovery](#9-backup--recovery) | 5 | 🟡 HIGH |
-| [10. Performance & DoS](#10-performance--dos) | 5 | 🟠 MEDIUM |
-| [11. Compliance & Privacy](#11-compliance--privacy) | 6 | 🟠 MEDIUM |
-| [12. Code Quality](#12-code-quality) | 5 | 🟢 LOW |
-| [13. Deployment & CI/CD](#13-deployment--cicd) | 5 | 🟢 LOW |
+**Purpose:** Validate ANY AI-generated code before deployment  
+**Standards:** OWASP Top 10 + API Top 10 + ISO 27001 + SOC 2 + EU AI Act + NIST  
+**How to use:** Paste to AI assistant: *"Review my code against this checklist"*
 
 ---
 
-## 🔴 CRITICAL - Must Fix Before Deployment
+## 📊 Complete Breakdown
 
-### 1. Secrets & API Keys
-
-Ask your AI: *"Search this codebase for hardcoded secrets"*
-
-- [ ] **No hardcoded API keys** - Search for: `sk_live`, `sk_test`, `api_key=`, `Bearer`, `password=`
-- [ ] **No secrets in frontend code** - JavaScript/React bundles expose everything!
-- [ ] **All secrets in `.env` file** - Never in source code
-- [ ] **`.env` in `.gitignore`** - Must NOT be committed to Git
-- [ ] **Secrets not in Git history** - Run: `git log -p | grep -i password` (should return nothing)
-
-**Fix:** Move all secrets to `.env` file and reference via `process.env.SECRET_NAME`
+| Section | Category | Count | Priority |
+|---------|----------|-------|----------|
+| 1-5 | Secrets & Credentials | 5 | 🔴 CRITICAL |
+| 6-11 | Database Security | 6 | 🔴 CRITICAL |
+| 12-19 | Authentication & Authorization | 8 | 🔴 CRITICAL |
+| 20-26 | Input Validation & XSS | 7 | 🔴 CRITICAL |
+| 27-32 | API Gateway & Rate Limiting | 6 | 🔴 CRITICAL |
+| 33-40 | Network & DDoS Protection | 8 | 🔴 CRITICAL |
+| 41-45 | Third-Party & Supply Chain | 5 | 🔴 CRITICAL |
+| 46-48 | Incident Response | 3 | 🔴 CRITICAL |
+| 49-53 | Dependencies & Packages | 5 | 🟡 HIGH |
+| 54-59 | Error Handling & Logging | 6 | 🟡 HIGH |
+| 60-67 | Infrastructure & Docker | 8 | 🟡 HIGH |
+| 68-72 | Backup & Recovery | 5 | 🟡 HIGH |
+| 73-80 | Privileged Access (PAM) | 8 | 🟡 HIGH |
+| 81-88 | Container & OS Hardening | 8 | 🟡 HIGH |
+| 89-95 | Monitoring & SIEM | 7 | 🟡 HIGH |
+| 96-98 | Security Training | 3 | 🟡 HIGH |
+| 99-104 | Data Classification | 6 | 🟠 MEDIUM |
+| 105-109 | Performance & DoS | 5 | 🟠 MEDIUM |
+| 110-115 | Compliance & Privacy | 6 | 🟠 MEDIUM |
+| 116-120 | Code Quality | 5 | 🟢 LOW |
+| 121-125 | Deployment & CI/CD | 5 | 🟢 LOW |
+| 126-130 | EU AI Act Specifics | 5 | 🟠 MEDIUM |
 
 ---
 
-### 2. Database Security
+# 🔴 CRITICAL - Network & DDoS Security
 
-Ask your AI: *"Check for SQL injection vulnerabilities"*
+## 1. API Gateway & Rate Limiting Architecture
+- [ ] API Gateway deployed (Traefik, Kong, or NGINX)
+- [ ] Rate limiting: 100 req/min per IP (configurable)
+- [ ] Rate limiting: 5 login attempts per minute
+- [ ] Request size limit: max 10MB JSON payload
+- [ ] Request timeout: 30 seconds enforced
+- [ ] Burst protection (sliding window, not fixed)
 
-- [ ] **Parameterized queries only** - No string concatenation in SQL
+## 2. Web Application Firewall (WAF) & DDoS Protection
+- [ ] WAF deployed (Cloudflare, AWS WAF, or ModSecurity)
+- [ ] DDoS volumetric protection (Layer 3/4)
+- [ ] Application-layer DDoS (Layer 7) rules enabled
+- [ ] OWASP Top 10 rules active (SQLi, XSS, CSRF)
+- [ ] Bot detection enabled
+- [ ] Geo-blocking configured (if needed)
+- [ ] WAF logging enabled for audit
+
+## 3. Network Segmentation & Isolation
+- [ ] Client data isolated (separate DB schemas OR separate VPS)
+- [ ] Internal network private (no direct internet access except Traefik)
+- [ ] n8n instance behind reverse proxy
+- [ ] Database internal-only (port 5432 NOT exposed)
+- [ ] Admin tools isolated (SSH only from trusted IPs)
+- [ ] Webhook endpoints public; core APIs private
+- [ ] Network firewall rules documented
+
+## 4. SSL/TLS Hardening
+- [ ] TLS 1.2+ minimum (disable 1.0, 1.1)
+- [ ] Strong cipher suites only (no NULL, RC4, MD5)
+- [ ] HSTS header enabled
+- [ ] Certificate auto-renewal verified (Let's Encrypt)
+- [ ] Certificate monitoring (alerts 30 days before expiry)
+**Test:** `https://www.ssllabs.com/ssltest/` → Grade A+
+
+---
+
+# 🔴 CRITICAL - Secrets & API Keys
+
+## 5. No Hardcoded Secrets
+- [ ] Search for: `sk_live`, `sk_test`, `api_key=`, `Bearer`, `password=`
+- [ ] No secrets in frontend code (JavaScript bundles expose everything!)
+- [ ] All secrets in `.env` file
+- [ ] `.env` in `.gitignore`
+- [ ] Secrets not in Git history: `git log -p | grep -i password`
+
+## 6. Pre-commit Hook for Secrets
+- [ ] Pre-commit hook prevents secret commits
+- [ ] Secret scanning CI/CD tool enabled (TruffleHog, GitGuardian)
+- [ ] GitHub branch protection enforced
+- [ ] Accidental commit procedure documented
+
+---
+
+# 🔴 CRITICAL - Database Security
+
+## 7. SQL Injection Prevention
+- [ ] Parameterized queries only - NO string concatenation
   ```javascript
   // ❌ BAD
   db.query(`SELECT * FROM users WHERE email = '${userEmail}'`);
@@ -53,300 +101,362 @@ Ask your AI: *"Check for SQL injection vulnerabilities"*
   // ✅ GOOD
   db.query('SELECT * FROM users WHERE email = $1', [userEmail]);
   ```
-- [ ] **Database not exposed to internet** - Only accessible within Docker network
-- [ ] **Strong database password** - 20+ characters, alphanumeric + symbols
-- [ ] **Separate database user** - Not using `root` or `postgres` admin user
-- [ ] **Database backups configured** - Daily automated backups
-- [ ] **Connection limits set** - Prevent connection exhaustion attacks
+- [ ] Database not exposed to internet
+- [ ] Strong database password (20+ characters)
+- [ ] Separate database user (not using root/postgres)
+- [ ] Database backups configured
+- [ ] Connection limits set
 
 ---
 
-### 3. Authentication & Authorization
+# 🔴 CRITICAL - Authentication & Authorization
 
-Ask your AI: *"Review authentication implementation for security issues"*
-
-- [ ] **Passwords hashed** - Using bcrypt, argon2, or scrypt (NOT md5/sha1)
-- [ ] **JWT tokens expire** - Access: 1 hour, Refresh: 7 days max
-  ```javascript
-  // ❌ BAD - No expiration
-  jwt.sign(payload, secret);
-  
-  // ✅ GOOD - Has expiration
-  jwt.sign(payload, secret, { expiresIn: '1h' });
-  ```
-- [ ] **Protected routes have middleware** - Auth check before accessing data
-- [ ] **Admin routes require admin role** - Role-based access control (RBAC)
-- [ ] **No auth bypass** - All private endpoints require valid token
-- [ ] **Session timeout configured** - 30 minutes idle timeout
-- [ ] **2FA available** - For admin accounts at minimum
-- [ ] **Account lockout** - After 5 failed login attempts
+## 8. Password & Token Security
+- [ ] Passwords hashed (bcrypt, argon2 - NOT md5/sha1)
+- [ ] JWT tokens expire (Access: 1h, Refresh: 7d max)
+- [ ] Protected routes have middleware
+- [ ] Admin routes require admin role (RBAC)
+- [ ] Session timeout configured (30 min)
+- [ ] 2FA available for admin accounts
+- [ ] Account lockout after 5 failed attempts
+- [ ] MFA mandatory for n8n admin
 
 ---
 
-### 4. Input Validation & XSS
+# 🔴 CRITICAL - Input Validation & XSS
 
-Ask your AI: *"Check for XSS vulnerabilities and missing input validation"*
-
-- [ ] **No `dangerouslySetInnerHTML`** - Or must use DOMPurify
-- [ ] **No raw `innerHTML`** - Use `textContent` instead
-- [ ] **No `eval()` or `new Function()`** - Never execute user input
-- [ ] **Server-side validation** - Don't trust client-side only
-- [ ] **Input length limits** - Max characters for all fields
-- [ ] **Email/URL validation** - Using proper regex or libraries
-- [ ] **File upload validation** - Check type, size, scan for malware
-
-**Fix:** Install `dompurify` for any HTML rendering: `npm install dompurify`
+## 9. XSS Prevention
+- [ ] No `dangerouslySetInnerHTML` (or use DOMPurify)
+- [ ] No raw `innerHTML` - use `textContent`
+- [ ] No `eval()` or `new Function()`
+- [ ] Server-side validation (don't trust client-side)
+- [ ] Input length limits
+- [ ] Email/URL validation
+- [ ] File upload validation (type, size, malware scan)
 
 ---
 
-## 🟡 HIGH - Fix Before Production Launch
+# 🔴 CRITICAL - Third-Party & Supply Chain
 
-### 5. API & Rate Limiting
+## 10. Vendor Risk Assessment
+- [ ] Vendor list created (n8n, API integrations, hosting)
+- [ ] Risk profile per vendor
+- [ ] Security assessment questionnaire sent
+- [ ] Vendor SOC 2/ISO 27001 certs collected
+- [ ] Data Processing Agreement (DPA) signed
 
-Ask your AI: *"Check if rate limiting is implemented"*
-
-- [ ] **Rate limiting on all endpoints** - 100 requests/minute per IP typical
-- [ ] **Rate limiting on login** - 5 attempts/minute to prevent brute force
-- [ ] **GraphQL depth limiting** - Max depth 10 to prevent query attacks
-- [ ] **Request size limits** - Max 10MB for JSON payloads
-- [ ] **Timeout configured** - 30 seconds max per request
-- [ ] **CORS properly scoped** - NOT using `*` (wildcard)
-  ```javascript
-  // ❌ BAD
-  app.use(cors({ origin: '*' }));
-  
-  // ✅ GOOD
-  app.use(cors({ origin: 'https://yourdomain.com' }));
-  ```
+## 11. Dependency Supply Chain Security
+- [ ] Software Bill of Materials (SBOM) generated
+- [ ] License compliance audit
+- [ ] Typosquatting detection (verify packages on npmjs.com)
+- [ ] Pinned versions only (no `~` or `^` in production)
+- [ ] Dependency diffs reviewed
 
 ---
 
-### 6. Dependencies & Packages
+# 🔴 CRITICAL - Incident Response
 
-Ask your AI: *"Check if all npm packages are legitimate and up-to-date"*
-
-- [ ] **Run `npm audit`** - Fix all high/critical vulnerabilities
-- [ ] **Verify package names** - AI may suggest typo-squatted packages
-  - Check download count on npmjs.com (legitimate packages have 1000s+ weekly)
-- [ ] **No deprecated packages** - Update to maintained alternatives
-- [ ] **Lock file committed** - `package-lock.json` in version control
-- [ ] **Pin major versions** - Avoid `"package": "latest"`
-
-**Common AI mistakes:**
-- `axios-api` (fake) → Use `axios` (real)
-- `huggingface-cli` (fake) → Use `@huggingface/hub` (real)
+## 12. Incident Response Plan
+- [ ] IR Policy document exists
+- [ ] IR Team identified
+- [ ] Incident severity classification (P1-P4)
+- [ ] Escalation matrix created
+- [ ] Notification templates prepared
+- [ ] 24/7 monitoring configured
+- [ ] Response time SLA: <1h acknowledge, <4h containment
+- [ ] Root cause analysis conducted within 7 days
+- [ ] Stakeholder notification within 72h (GDPR)
 
 ---
 
-### 7. Error Handling & Logging
+# 🟡 HIGH - Dependencies & Packages
 
-Ask your AI: *"Check error handling and ensure no stack traces leak to users"*
-
-- [ ] **No stack traces to users** - Return generic error messages
-  ```javascript
-  // ❌ BAD
-  res.status(500).json({ error: err.stack });
-  
-  // ✅ GOOD
-  console.error('[ERROR]', err); // Log internally
-  res.status(500).json({ error: 'Internal server error' });
-  ```
-- [ ] **All async functions have try-catch** - No unhandled promise rejections
-- [ ] **No sensitive data in logs** - No passwords, tokens, PII
-- [ ] **Error logging enabled** - Errors saved for debugging
-- [ ] **NODE_ENV=production** - Ensures safe error handling
-- [ ] **Log rotation configured** - Prevent disk filling up
+## 13. Package Security
+- [ ] Run `npm audit` - fix all high/critical
+- [ ] Verify package names on npmjs.com
+- [ ] No deprecated packages
+- [ ] Lock file committed (`package-lock.json`)
+- [ ] Pin major versions (avoid `"latest"`)
 
 ---
 
-### 8. Infrastructure & Docker
+# 🟡 HIGH - Error Handling & Logging
 
-Ask your AI: *"Review Docker configuration for security"*
+## 14. Error Security
+- [ ] No stack traces to users
+- [ ] All async functions have try-catch
+- [ ] No sensitive data in logs
+- [ ] Error logging enabled
+- [ ] `NODE_ENV=production`
+- [ ] Log rotation configured
 
-- [ ] **No root user in containers** - Use non-root where possible
-- [ ] **Only necessary ports exposed** - 80, 443 via Traefik only
-- [ ] **Database port NOT exposed** - Internal Docker network only
-- [ ] **Resource limits set** - CPU and memory limits per container
-  ```yaml
-  deploy:
-    resources:
-      limits:
-        cpus: '1'
-        memory: 1G
-  ```
-- [ ] **Health checks configured** - Docker restarts unhealthy containers
-- [ ] **`.dockerignore` exists** - Excludes node_modules, .env
-- [ ] **HTTPS enforced** - HTTP redirects to HTTPS
-- [ ] **SSL certificates auto-renewed** - Let's Encrypt or similar
+## 15. Audit Log Management
+- [ ] System logs retained 1+ year
+- [ ] Admin action logs (every login, config change)
+- [ ] Immutable log storage
+- [ ] Log encryption (transit AND rest)
+- [ ] Automated log cleanup policy
 
 ---
 
-### 9. Backup & Recovery
+# 🟡 HIGH - Infrastructure & Docker
 
-Ask your AI: *"Verify backup configuration"*
+## 16. Container Security
+- [ ] Docker images scanned (Trivy, Snyk)
+- [ ] No root user in containers
+- [ ] Secrets NOT in Dockerfile
+- [ ] Container registry secured
+- [ ] Only necessary ports exposed (80, 443)
+- [ ] Resource limits set (CPU, memory)
+- [ ] Health checks configured
+- [ ] `.dockerignore` exists
 
-- [ ] **Automated daily backups** - Cron job at 2 AM or similar
-- [ ] **Backup retention policy** - Keep 7-30 days of backups
-- [ ] **Offsite backup option** - S3, Google Cloud, or separate server
-- [ ] **Backup tested** - Actually restored once to verify it works
-- [ ] **Database backup script exists** - Using `pg_dump` or equivalent
-
----
-
-## 🟠 MEDIUM - Should Fix Soon
-
-### 10. Performance & DoS
-
-Ask your AI: *"Check for performance issues and DoS vulnerabilities"*
-
-- [ ] **No infinite loops** - Check `while(true)` patterns
-- [ ] **No N+1 queries** - Batch database queries where possible
-- [ ] **Pagination implemented** - Don't return 10,000 records at once
-- [ ] **Max file upload size** - 50MB typical, reject larger
-- [ ] **Request timeout** - 30 seconds, then terminate
+## 17. Operating System Hardening
+- [ ] OS updates automated
+- [ ] UFW firewall rules logged
+- [ ] SSH hardened (password auth disabled, key-only)
+- [ ] Root login disabled
+- [ ] Fail2Ban enabled
+- [ ] Unnecessary services disabled
 
 ---
 
-### 11. Compliance & Privacy
+# 🟡 HIGH - Backup & Recovery
 
-Ask your AI: *"Check GDPR and data privacy compliance"*
-
-- [ ] **Data encryption in transit** - HTTPS everywhere
-- [ ] **Data encryption at rest** - Encrypted database volumes (optional)
-- [ ] **User data deletion possible** - GDPR "right to be forgotten"
-- [ ] **Audit logs enabled** - Track who accessed what
-- [ ] **Privacy policy page** - Required for user-facing apps
-- [ ] **Cookie consent** - If using cookies/tracking
+## 18. Backup Configuration
+- [ ] Automated daily backups
+- [ ] Backup retention policy (7-30 days)
+- [ ] Offsite backup option (S3 or separate server)
+- [ ] Monthly backup restoration test
+- [ ] RTO/RPO documented
 
 ---
 
-## 🟢 LOW - Nice to Have
+# 🟡 HIGH - Privileged Access Management
 
-### 12. Code Quality
-
-Ask your AI: *"Review code quality and identify issues"*
-
-- [ ] **No console.log in production** - Remove or use proper logging
-- [ ] **No unused imports/variables** - Clean code
-- [ ] **Consistent error messages** - User-friendly language
-- [ ] **TypeScript types defined** - If using TypeScript
-- [ ] **Comments for complex logic** - Document non-obvious code
-
----
-
-### 13. Deployment & CI/CD
-
-Ask your AI: *"Review deployment configuration"*
-
-- [ ] **Environment variables documented** - `.env.example` file
-- [ ] **Deployment script exists** - Automated deployment
-- [ ] **Rollback procedure documented** - How to undo a bad deploy
-- [ ] **Health check endpoint** - `/health` returns 200 OK
-- [ ] **Zero-downtime deployment** - Blue-green or rolling updates
+## 19. Access Control
+- [ ] Admin access logged
+- [ ] Admin sessions time-limited (30min idle logout)
+- [ ] SSH key rotation (quarterly)
+- [ ] Service accounts isolated
+- [ ] Quarterly access reviews
+- [ ] Dormant account cleanup (>90 days = disable)
+- [ ] Offboarding checklist exists
 
 ---
 
-## 🚀 How to Use This Checklist
+# 🟡 HIGH - Secrets Rotation
 
-### For New Projects
+## 20. Key Management
+- [ ] Database password rotated: quarterly
+- [ ] API keys rotated: quarterly
+- [ ] JWT signing key rotated: annually
+- [ ] SSH keys rotated: annually
+- [ ] TLS certificates renewed: automatically
+- [ ] Old secrets revoked immediately after rotation
 
-1. Copy this file to your project root
-2. Paste to your AI: *"Review my project against this checklist"*
-3. Fix all 🔴 CRITICAL items before deployment
-4. Fix 🟡 HIGH items before production launch
-5. Address 🟠 MEDIUM and 🟢 LOW items over time
+---
 
-### For Existing Projects
+# 🟡 HIGH - Monitoring & SIEM
 
-1. Run: `npm audit` to find vulnerable packages
-2. Search for hardcoded secrets: `grep -r "sk_live\|password=" .`
-3. Check if `.env` is in `.gitignore`
-4. Review authentication middleware
-5. Test backup restoration
+## 21. Security Monitoring
+- [ ] SIEM deployment (ELK, Splunk, or Wazuh)
+- [ ] Log aggregation from all sources
+- [ ] Correlation rules configured
+- [ ] Alerting templates for privilege escalation, API errors
+- [ ] 24/7 monitoring
 
-### Commands to Run
+## 22. Metrics & KPI Dashboards
+- [ ] Uptime KPI: target 99.5%
+- [ ] Error rate KPI: <0.1%
+- [ ] API response time: <500ms (p95)
+- [ ] Backup success rate: 100%
+- [ ] Security incident count tracked
+
+---
+
+# 🟠 MEDIUM - Data Classification
+
+## 23. Data Protection
+- [ ] Classification levels defined (Public, Internal, Confidential, Secret)
+- [ ] Classification applied to all data
+- [ ] Handling requirements per level
+- [ ] Data retention policy documented
+- [ ] Automated deletion jobs
+- [ ] GDPR "right to erasure" process
+
+## 24. PII Handling
+- [ ] PII definition established
+- [ ] PII encryption in database
+- [ ] PII access logging
+- [ ] PII masking in logs
+- [ ] Breach notification procedure (within 72h)
+
+---
+
+# 🟠 MEDIUM - Performance & DoS
+
+## 25. DoS Protection
+- [ ] No infinite loops
+- [ ] No N+1 queries
+- [ ] Pagination implemented
+- [ ] Max file upload size (50MB)
+- [ ] Request timeout (30 seconds)
+
+---
+
+# 🟠 MEDIUM - Compliance & Privacy
+
+## 26. GDPR Compliance
+- [ ] Data encryption in transit (HTTPS)
+- [ ] User data deletion possible
+- [ ] Audit logs enabled
+- [ ] Privacy policy page
+- [ ] Cookie consent
+
+---
+
+# 🟢 LOW - Code Quality
+
+## 27. Code Standards
+- [ ] No console.log in production
+- [ ] No unused imports/variables
+- [ ] Consistent error messages
+- [ ] TypeScript types defined (if TS)
+- [ ] Comments for complex logic
+
+---
+
+# 🟢 LOW - Deployment & CI/CD
+
+## 28. Deployment Process
+- [ ] Environment variables documented
+- [ ] Deployment script exists
+- [ ] Rollback procedure documented
+- [ ] Health check endpoint
+- [ ] Zero-downtime deployment
+
+---
+
+# 🟠 MEDIUM - EU AI Act (High-Risk AI)
+
+## 29. AI Workflow Classification
+For workflows using AI (Claude, GPT, etc.):
+- [ ] Does workflow make hiring/employment decisions? (= high-risk)
+- [ ] Does workflow assess credit/insurance? (= high-risk)
+- [ ] Does workflow identify/track people? (= high-risk)
+
+**If HIGH-RISK:**
+- [ ] Conformity assessment created
+- [ ] Human oversight procedure documented
+- [ ] Human override mechanism exists
+- [ ] Appeal process defined
+- [ ] Documentation stored in `/compliance/HIGH-RISK-AI/`
+
+---
+
+# 🟠 MEDIUM - n8n-Specific Hardening
+
+## 30. n8n Security
+- [ ] N8N_SECURE_COOKIE enabled
+- [ ] N8N_SESSION_TIMEOUT = 30min
+- [ ] N8N_CREDENTIALS_ENCRYPTION_KEY rotated quarterly
+- [ ] Webhook token validation enforced
+- [ ] Code node restricted to trusted users
+- [ ] Unused workflows disabled
+- [ ] Credentials quarterly audit
+
+---
+
+# 📋 Pre-Deployment Script
 
 ```bash
-# Check for secrets in code
-grep -rn "sk_live_\|sk_test_\|api_key=\|password=" --include="*.js" --include="*.ts" .
+#!/bin/bash
+set -e
 
-# Check for vulnerable packages
-npm audit
+echo "🛡️ AI ROBUSTNESS PRE-DEPLOYMENT AUDIT"
 
-# Check for outdated packages
-npm outdated
+# CRITICAL: Secrets
+grep -rn "sk_live\|sk_test\|password=" --include="*.js" --include="*.ts" . && exit 1
 
-# Verify .gitignore
-cat .gitignore | grep -E ".env|node_modules"
+# CRITICAL: npm audit
+npm audit --audit-level=high || exit 1
 
-# Test database backup
-pg_dump -U username dbname | gzip > backup_test.sql.gz
+# CRITICAL: Backups exist
+ls -lh /backups/*.sql.gz | tail -1 || exit 1
+
+# CRITICAL: Git history clean
+git log -p | grep -i "password\|api_key\|sk_" && exit 1
+
+# HIGH: SSL cert valid
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null | grep "Verify return code: 0"
+
+# MEDIUM: IR Plan exists
+test -f docs/INCIDENT-RESPONSE-PLAN.md || exit 1
+
+echo "✅ ALL CHECKS PASSED - Ready to deploy!"
 ```
 
 ---
 
-## 📝 Prompt Templates
+# 📝 Prompt Templates
 
-### Security Review Prompt
+### Full Security Review
 ```
-I am about to deploy this code to production. Please review it against 
-enterprise security standards and identify:
+Review this code against enterprise security standards:
 1. Hardcoded secrets or API keys
 2. SQL injection vulnerabilities
 3. XSS vulnerabilities  
 4. Authentication/authorization issues
-5. Missing rate limiting
-6. Any other security concerns
-
+5. Rate limiting
+6. OWASP Top 10 compliance
 Be specific about file names and line numbers.
 ```
 
-### Compliance Review Prompt
+### Compliance Review
 ```
-Review this code for GDPR and SOC 2 compliance. Check for:
+Review for GDPR, SOC 2, ISO 27001 compliance:
 1. Data encryption (transit and rest)
 2. Audit logging
 3. User data deletion capability
-4. Access controls and authentication
+4. Access controls
 5. Secure session management
-
-List any compliance gaps with remediation steps.
+List gaps with remediation steps.
 ```
 
-### Infrastructure Review Prompt
+### n8n Workflow Review
 ```
-Review my Docker/infrastructure configuration for:
-1. Exposed ports that shouldn't be public
-2. Missing resource limits
-3. Containers running as root
-4. Missing health checks
-5. Database security
-6. SSL/TLS configuration
+Review this n8n workflow for:
+1. Credential exposure
+2. Infinite loop risks
+3. Error handling
+4. Rate limit considerations
+5. Data handling security
 ```
 
 ---
 
-## ✅ Sign-Off Checklist
+# ✅ Sign-Off Checklist
 
-Before deploying to production, ensure:
+Before production deployment:
 
-- [ ] All 🔴 CRITICAL items are fixed
-- [ ] Security review completed by AI
-- [ ] `npm audit` shows 0 high/critical vulnerabilities
+- [ ] All 🔴 CRITICAL items fixed
+- [ ] `npm audit` = 0 critical/high
 - [ ] Backups tested and working
 - [ ] SSL certificate valid
 - [ ] Rate limiting active
 - [ ] Firewall configured (UFW)
-- [ ] Fail2Ban protecting SSH
-- [ ] Secrets in `.env` only (not in code)
+- [ ] Fail2Ban active
+- [ ] Secrets in `.env` only
+- [ ] Incident Response Plan exists
 - [ ] Admin accounts have 2FA
 
+**Project:** _______________  
 **Signature:** _______________  
-**Date:** _______________  
-**Project:** _______________
+**Date:** _______________
 
 ---
 
-*Created by: Senior Full-Stack Security Engineer, DevOps, Compliance Officer*  
-*Last Updated: 2025-12-26*  
-*Version: 1.0*
+*Version: 2.0 (60-Point Enterprise Edition)*  
+*Standards: OWASP + ISO 27001 + SOC 2 + EU AI Act + NIST*  
+*Last Updated: 2025-12-26*

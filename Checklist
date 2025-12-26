@@ -1,0 +1,2079 @@
+text
+You are my senior DevOps + full‑stack + security engineer.
+
+Context:
+- Repo: PRIVATE GitHub repo → `https://github.com/cleptoio/Clepto-OS-v1`
+- Stack: Docker + Traefik + Easypanel on a single Ubuntu VPS (Hostinger)
+- Goal: Deploy Clepto OS production-ready with:
+  1. Auto-deploy pipeline (Git push → auto update)
+  2. Security + compliance hardening (UFW, Fail2Ban, 2FA, audit logs, backups)
+  3. Code review for bugs/vulnerabilities (13-point security checklist included)
+- I am a solo founder + automation engineer; keep everything clear + actionable.
+
+---
+
+## PHASE 1 – COMPREHENSIVE CODE REVIEW & SECURITY AUDIT
+
+Before any deployment, review the entire repo systematically.
+
+### Section A: Standard Security Issues
+
+1. **Hard-Coded Secrets:**
+   - Search repo for hardcoded keys: `grep -r "sk_live_\|sk_test_\|AIzaSy\|Bearer \|password=\|api_key=" --include="*.js" --include="*.tsx" --include="*.ts" --include="*.py"`
+   - Check if API keys are in:
+     - Frontend source files (bundle will expose them!)
+     - Git history (compromised even if deleted)
+   - Check `.gitignore` includes: `.env`, `.env.local`, `.env.*.local`, `pgdata/`, `backups/`, `logs/`
+   - Expected: All sensitive keys must be in `.env` or backend only
+   - If found: CRITICAL, list each file + remediation
+
+2. **SQL Injection Risks:**
+   - Search for string concatenation in SQL queries:
+     - `grep -r "query(\`.*\${" --include="*.js" --include="*.ts"`
+     - `grep -r "SELECT.*WHERE.*\+" --include="*.py"`
+   - Expected pattern (SAFE):
+     ```
+     // ✅ GOOD: Parameterized queries
+     db.query('SELECT * FROM users WHERE email = $1', [userEmail]);
+     ```
+   - Bad pattern (DANGEROUS):
+     ```
+     // ❌ BAD: String concatenation
+     db.query(`SELECT * FROM users WHERE email = '${userEmail}'`);
+     ```
+   - Report any string-concatenated SQL as CRITICAL
+
+3. **XSS Vulnerabilities:**
+   - Check for dangerous patterns:
+     - `dangerouslySetInnerHTML` (React)
+     - `innerHTML` assignments (JavaScript)
+     - `eval()` or `new Function()`
+   - Expected: User inputs escaped automatically by framework or explicitly sanitized
+   - If found, flag as CRITICAL + suggest:
+     ```
+     npm install dompurify  # For HTML sanitization if needed
+     ```
+
+4. **CORS Misconfiguration:**
+   - Check if CORS is configured:
+     - `Access-Control-Allow-Origin: *` is DANGEROUS
+     - Should be: `Access-Control-Allow-Origin: https://crm.clepto.io` (specific domain)
+   - Look in:
+     - Express/Node middleware
+     - Traefik config (if applicable)
+     - Frontend API client setup
+   - Expected `.env` config:
+     ```
+     CORS_ALLOWED_ORIGINS=https://crm.clepto.io,https://app.clepto.io
+     ```
+
+5. **Dependency Vulnerabilities:**
+   - Run:
+     ```
+     npm audit
+     npm list | grep -i "deprecated\|vulnerable"
+     pip check  # if Python
+     ```
+   - Report critical/high vulnerabilities with fix steps
+
+---
+
+### Section B: The 10 Most Common AI-Generated Vulnerabilities
+
+#### TOP 5 – API & Authentication
+
+**1. No Rate Limiting**
+   - Check all API endpoints (GraphQL, REST, webhooks)
+   - Are there rate limits per IP / per user?
+   - Expected: Every public endpoint should have rate limiting (e.g., 100 req/min per IP)
+   - If missing, flag as **CRITICAL** and suggest:
+     ```
+     npm install express-rate-limit  # or equivalent
+     ```
+   - Add to `.env.example`:
+     ```
+     RATE_LIMIT_WINDOW_MS=60000  # 1 minute
+     RATE_LIMIT_MAX_REQUESTS=100  # max 100 requests per window
+     GRAPHQL_MAX_DEPTH=10  # Prevent query complexity attacks
+     ```
+
+**2. API Keys in Client Code**
+   - Search: `grep -r "sk_live_\|sk_test_\|AIzaSy\|Bearer " --include="*.js" --include="*.tsx"`
+   - Check if secrets are in:
+     - Frontend bundles
+     - Version control history
+   - Expected: All API keys must be:
+     - In `.env` (backend only)
+     - Never in frontend code
+     - Never committed to git
+   - If found: **CRITICAL** breach
+
+**3. No Authentication on Internal Endpoints**
+   - List all API endpoints that should NOT be public:
+     - `/admin/*` endpoints
+     - `/internal/*` endpoints
+     - `/webhook/callback` (should verify signature, not rely on path)
+   - Check if they have:
+     - JWT/Bearer token validation?
+     - Role-based checks (admin only)?
+   - Expected middleware:
+     ```
+     // ✅ GOOD: Auth middleware
+     app.use('/admin/*', validateJWT, checkRole('admin'));
+     
+     // ❌ BAD: No auth
+     app.get('/admin/users', (req, res) => { /* ... */ });
+     ```
+   - If missing: **CRITICAL**
+
+**4. Over-Permissive CORS**
+   - Search for CORS config: `grep -r "Access-Control\|allowedOrigins\|CORS" --include="*.js" --include="*.ts"`
+   - Bad patterns:
+     ```
+     // ❌ DANGEROUS
+     app.use(cors()); // Allows *
+     app.use(cors({ origin: '*' }));
+     ```
+   - Good patterns:
+     ```
+     // ✅ GOOD
+     app.use(cors({ origin: 'https://crm.clepto.io' }));
+     ```
+   - Expected `.env`:
+     ```
+     CORS_ALLOWED_ORIGINS=https://crm.clepto.io,https://app.clepto.io
+     ```
+   - If wildcard `*`: **CRITICAL**
+
+**5. No Input Validation & Sanitization**
+   - Check all user inputs (forms, API params, file uploads):
+     - Are inputs validated on **server-side** (not just client)?
+     - Are they sanitized before:
+       - Database queries (SQL injection)?
+       - HTML rendering (XSS)?
+       - File operations (path traversal)?
+   - Expected patterns:
+     ```
+     // ✅ GOOD: Validate + sanitize
+     const { body, validationResult } = require('express-validator');
+     app.post('/api/users', [
+       body('email').isEmail().trim().escape(),
+       body('name').notEmpty().trim().escape(),
+     ], (req, res) => {
+       const errors = validationResult(req);
+       if (!errors.isEmpty()) return res.status(400).json({ errors });
+       // Process...
+     });
+     
+     // ❌ BAD: No validation
+     app.post('/api/users', (req, res) => {
+       const { email, name } = req.body;
+       db.query(`INSERT INTO users VALUES ('${email}', '${name}')`);
+     });
+     ```
+   - If missing: **CRITICAL**
+
+---
+
+#### NEXT 5 – Dependencies & Business Logic
+
+**6. Dependency Squatting (Typo-Squatting)**
+   - Run:
+     ```
+     npm audit
+     npm list | head -50  # Verify package names visually
+     ```
+   - **Manually verify package names** when AI generates:
+     - Search on NPM registry: https://www.npmjs.com/
+     - Check download count (real packages have 1000s+ weekly downloads)
+     - Check if package exists in official registry
+   - Look for suspicious packages like:
+     - `huggingface-cli` (typo of `huggingface-hub`)
+     - `axios-api` (likely typo of `axios`)
+     - `nodemon-cli` (real: `nodemon`)
+   - Report any suspicious packages as **CRITICAL**
+   - Create a review file: `docs/DEPENDENCIES-VERIFIED.md` listing all verified packages
+
+**7. Missing Input Sanitization (XSS)**
+   - Same as vulnerability #5 (input validation)
+   - Also check:
+     - User-generated content (comments, notes, names)
+     - Are they HTML-escaped before display?
+     - Are they sanitized in email templates?
+     - File uploads: Check file type, size, content
+   - Expected:
+     ```
+     // ✅ GOOD: React escapes by default
+     <div>{userInput}</div>
+     
+     // ✅ GOOD: Explicit sanitization
+     import DOMPurify from 'dompurify';
+     const clean = DOMPurify.sanitize(userInput);
+     
+     // ❌ BAD: Dangerous HTML
+     <div dangerouslySetInnerHTML={{__html: userInput}} />
+     ```
+
+**8. Outdated Dependencies**
+   - Run:
+     ```
+     npm outdated
+     npm audit
+     ```
+   - Check for very old versions:
+     - React < 17? (EOL, no security updates)
+     - Node < 16? (EOL)
+     - Postgres < 12? (EOL)
+     - express < 4.17? (old)
+   - Expected: Pin versions to latest stable
+   - Create `scripts/update-deps.sh`:
+     ```
+     #!/bin/bash
+     npm update
+     npm audit fix
+     npm audit fix --force  # (review before using)
+     ```
+   - Add to `.env.example`:
+     ```
+     # Dependency update schedule: monthly
+     # Run: bash scripts/update-deps.sh
+     ```
+
+**9. Business Logic Flaws**
+   - Manually review these critical flows:
+     - **Refund Logic:** Does order status check happen **before** refund?
+     - **Payment:** Is webhook signature validated?
+     - **Permissions:** Can user access data from other teams/companies?
+     - **Rate Limits:** Are they per-user or per-IP (easy to bypass)?
+     - **Data Access:** Row-level security enforced?
+   - Expected code patterns:
+     ```
+     // ✅ GOOD: Validate state first
+     async function refund(orderId, userId) {
+       const order = await db.getOrder(orderId);
+       if (!order) throw new Error('Order not found');
+       if (order.status !== 'PAID') throw new Error('Cannot refund unpaid order');
+       if (order.userId !== userId) throw new Error('Unauthorized');
+       if (order.refunded) throw new Error('Already refunded');
+       // Do refund...
+       await db.updateOrder(orderId, { status: 'REFUNDED' });
+     }
+     
+     // ❌ BAD: No state checks
+     async function refund(orderId, userId) {
+       // Just process refund without checks
+       await processRefund(orderId);
+     }
+     ```
+   - Report any logic gaps as **CRITICAL**
+
+**10. No Error Handling**
+   - Check API responses for:
+     - Unhandled exceptions → Stack traces exposed?
+     - Division by zero, null references → Crashes app?
+     - Large requests → Memory exhaustion? Timeout?
+   - Search for missing try-catch:
+     ```
+     grep -r "async function\|\.then(" --include="*.js" --include="*.ts" | grep -v "catch"
+     ```
+   - Expected error handling:
+     ```
+     // ✅ GOOD: Catch errors, return safe response
+     try {
+       const result = await processData(input);
+       res.json({ success: true, data: result });
+     } catch (err) {
+       console.error('[ERROR]', err);  // Log internally only
+       res.status(500).json({ error: 'Internal server error' });  // Safe response
+     }
+     
+     // ❌ BAD: Leak stack trace
+     res.status(500).json({ error: err.toString() });
+     ```
+   - Expected `.env`:
+     ```
+     NODE_ENV=production  # Never expose stack traces
+     LOG_LEVEL=info  # Don't log sensitive data
+     ```
+
+---
+
+#### LAST 3 – Performance & Environment
+
+**11. Performance & DoS Vulnerabilities**
+   - Check if there are limits:
+     - Max request size? (Should be < 10MB)
+     - Max query complexity? (GraphQL depth limit?)
+     - Max file upload size?
+     - Request timeout?
+   - Expected in `.env`:
+     ```
+     MAX_REQUEST_SIZE=10mb
+     MAX_JSON_SIZE=10mb
+     GRAPHQL_MAX_DEPTH=10
+     UPLOAD_MAX_FILE_SIZE=50mb
+     REQUEST_TIMEOUT_MS=30000
+     ```
+   - Check for infinite loops or O(n²) algorithms:
+     ```
+     grep -r "while(true)\|for.*for" --include="*.js" --include="*.ts"
+     ```
+   - If missing limits: **CRITICAL**
+
+**12. Token Expiration (Perpetual Tokens)**
+   - Check JWT configuration:
+     ```
+     grep -r "expiresIn\|TTL\|EXPIR\|exp:" --include="*.js" --include="*.ts"
+     ```
+   - Expected:
+     ```
+     // ✅ GOOD: Tokens expire
+     jwt.sign(payload, secret, { expiresIn: '1h' });
+     
+     // ❌ BAD: Perpetual tokens
+     jwt.sign(payload, secret);  // No expiration!
+     ```
+   - Expected `.env`:
+     ```
+     JWT_EXPIRES_IN=1h  # Access token: 1 hour
+     REFRESH_TOKEN_EXPIRES_IN=7d  # Refresh: 7 days
+     SESSION_TIMEOUT_MINUTES=30
+     ```
+   - Check refresh token flow exists (not perpetual tokens)
+   - If tokens never expire: **CRITICAL**
+
+**13. Local vs Production Mismatch**
+   - Check for hard-coded values that change by environment:
+     - Localhost URLs: Should use `process.env.SERVER_URL`
+     - HTTPS: Should be enforced in production (not dev)
+     - Database: Should switch between `localhost` and RDS/managed DB
+     - Credentials: Never same in dev/prod
+   - Bad patterns:
+     ```
+     // ❌ BAD: Hard-coded localhost
+     const API_URL = 'http://localhost:3000/api';
+     
+     // ✅ GOOD: Env var
+     const API_URL = process.env.REACT_APP_API_URL;
+     ```
+   - Expected:
+     ```
+     # .env.local (dev)
+     SERVER_URL=http://localhost:3000
+     PG_HOST=localhost
+     NODE_ENV=development
+     
+     # .env (prod, in Easypanel/GitHub Secrets)
+     SERVER_URL=https://crm.clepto.io
+     PG_HOST=clepto-db  # Docker service name
+     NODE_ENV=production
+     ```
+   - Create a script `scripts/validate-env.sh`:
+     ```
+     #!/bin/bash
+     if [ "$NODE_ENV" = "production" ]; then
+       [ -z "$PG_PASSWORD" ] && echo "ERROR: PG_PASSWORD not set!" && exit 1
+       [ "$SERVER_URL" = "http://localhost:3000" ] && echo "ERROR: LOCAL URL in PROD!" && exit 1
+       [ "$SERVER_URL" != "https://"* ] && echo "ERROR: Non-HTTPS URL in PROD!" && exit 1
+     fi
+     echo "✅ Environment validation passed"
+     ```
+
+---
+
+### Section C: Code Quality & Best Practices
+
+6. **Code Quality Checks:**
+   - Linting errors or obvious bugs in main app files
+   - Missing error handling in API endpoints or workflows
+   - Unused imports or dead code
+   - Database migrations (if any) are tested and reversible
+   - No `console.log(sensitiveData)` in production code
+
+7. **Docker/Infra Quality:**
+   - No root user in Dockerfiles (use non-root where possible)
+   - No exposed ports unnecessarily in `docker-compose.yml`
+   - Volume mounts are secure (correct permissions, no world-writable)
+   - `.dockerignore` and `.gitignore` exist and are comprehensive
+   - Health checks configured for each service
+   - Resource limits set (CPU, memory) to prevent runaway containers
+
+8. **Logging & Monitoring:**
+   - No sensitive data logged (passwords, tokens, PII)
+   - Error logs are detailed but don't leak stack traces to clients
+   - Access logs are captured for audit trail
+   - Alert system configured for critical errors
+
+---
+
+## PHASE 2 – INFRASTRUCTURE & SECRETS SETUP
+
+### 2.1 – Create Production .env & docker-compose.yml
+
+Goal: Single source of truth for all config.
+
+Tasks:
+
+1. Review/update `docker-compose.yml`:
+   - All services named consistently: `clepto-crm`, `clepto-api`, `clepto-db`, `clepto-redis` (if used), `traefik`.
+   - All hardcoded values moved to `.env` references: `${VAR_NAME}`.
+   - No exposed ports except Traefik (80, 443).
+   - Postgres volume: `./pgdata:/var/lib/postgresql/data` (persistent on host).
+   - Network: all services on internal Docker network (not host mode unless required).
+   - Resource limits: CPU/memory caps to avoid runaway containers.
+   - Health checks for critical services (db, api).
+
+2. Create/update `.env.example` with ALL variables:
+
+========== APP CORE ==========
+APP_SECRET=GENERATE_STRONG_KEY_HERE # Used for session/JWT. Generate: openssl rand -base64 32
+NODE_ENV=production
+SERVER_URL=https://crm.clepto.io # Your domain; used for API/redirects
+FRONTEND_URL=https://crm.clepto.io # Same or subdomain if split
+
+========== DATABASE ==========
+PG_HOST=clepto-db
+PG_PORT=5432
+PG_DATABASE=clepto_os
+PG_USER=postgres
+PG_PASSWORD=VERY_STRONG_DB_PASSWORD # Min 32 chars, alphanumeric + special chars
+PG_MAX_CONNECTIONS=20
+
+========== REDIS (if used) ==========
+REDIS_HOST=clepto-redis
+REDIS_PORT=6379
+REDIS_PASSWORD=REDIS_STRONG_PASSWORD # If auth required
+
+========== EMAIL / NOTIFUSE ==========
+NOTIFUSE_API_KEY=YOUR_NOTIFUSE_API_KEY_HERE
+NOTIFUSE_BASE_URL=https://api.notifuse.io
+SMTP_HOST=smtp.provider.com # If using SMTP directly
+SMTP_PORT=587
+SMTP_USER=your-email@domain.com
+SMTP_PASSWORD=SMTP_PASSWORD_HERE
+SMTP_FROM=noreply@clepto.io
+
+========== n8n INTEGRATION ==========
+N8N_WEBHOOK_URL=https://n8n.yourdomain.com/webhook # Your n8n webhook endpoint
+N8N_API_KEY=YOUR_N8N_API_KEY_HERE # If auth required
+
+========== SECURITY & AUTH ==========
+JWT_SECRET=STRONG_JWT_SECRET_HERE # Min 32 chars
+JWT_EXPIRES_IN=1h # Access token expiration
+REFRESH_TOKEN_EXPIRES_IN=7d # Refresh token expiration
+SESSION_SECRET=STRONG_SESSION_SECRET_HERE
+SESSION_TIMEOUT_MINUTES=30
+
+========== 2FA SETTINGS ==========
+ENABLE_2FA=true
+TOTP_WINDOW=1 # Time window for TOTP validation (typical: 1)
+
+========== API RATE LIMITING ==========
+RATE_LIMIT_WINDOW_MS=60000 # 1 minute
+RATE_LIMIT_MAX_REQUESTS=100 # max 100 requests per window
+GRAPHQL_MAX_DEPTH=10 # Prevent query complexity attacks
+
+========== CORS CONFIGURATION ==========
+CORS_ALLOWED_ORIGINS=https://crm.clepto.io,https://app.clepto.io
+
+========== REQUEST LIMITS ==========
+MAX_REQUEST_SIZE=10mb
+MAX_JSON_SIZE=10mb
+UPLOAD_MAX_FILE_SIZE=50mb
+REQUEST_TIMEOUT_MS=30000
+
+========== BACKUP & OFFSITE STORAGE ==========
+Option 1: S3-compatible (AWS S3, DigitalOcean Spaces, Minio, etc.)
+BACKUP_S3_ENABLED=true
+BACKUP_S3_ENDPOINT=https://s3.amazonaws.com # or your provider
+BACKUP_S3_BUCKET=clepto-backups-prod
+BACKUP_S3_REGION=us-east-1
+BACKUP_S3_ACCESS_KEY=YOUR_S3_ACCESS_KEY
+BACKUP_S3_SECRET_KEY=YOUR_S3_SECRET_KEY
+
+Option 2: SSH/SFTP backup server
+BACKUP_SFTP_ENABLED=false
+BACKUP_SFTP_HOST=backup.example.com
+BACKUP_SFTP_USER=backup-user
+BACKUP_SFTP_PASSWORD=SFTP_PASSWORD_HERE
+BACKUP_SFTP_PATH=/backups/clepto
+
+Backup retention policy (days)
+BACKUP_RETENTION_DAYS=30 # Keep 30 days of backups
+BACKUP_SCHEDULE_CRON=0 2 * * * # 2 AM daily
+
+========== AUDIT LOGGING ==========
+AUDIT_LOG_RETENTION_DAYS=365 # Keep audit logs for 1 year (compliance)
+AUDIT_LOG_LEVEL=info # info, debug, warn, error
+LOG_LEVEL=info # Don't expose sensitive data in logs
+
+========== SSL / TLS ==========
+TLS_CERT_PATH=/etc/traefik/certs/cert.pem
+TLS_KEY_PATH=/etc/traefik/certs/key.pem
+
+========== VPS / INFRASTRUCTURE ==========
+DOMAIN=crm.clepto.io
+VPS_SSH_PORT=22 # Change if custom SSH port
+TRAEFIK_DASHBOARD_ENABLED=false # Keep disabled in prod
+
+========== FEATURE FLAGS ==========
+ENABLE_API=true # Allow GraphQL/REST API
+ENABLE_WORKFLOWS=true # n8n integrations
+ENABLE_TEAM_MANAGEMENT=true # Multi-user/roles
+
+text
+
+3. Ensure `.gitignore` includes:
+.env
+.env.local
+.env.*.local
+pgdata/
+backups/
+logs/
+node_modules/
+.DS_Store
+dist/
+build/
+
+text
+
+4. Create `scripts/generate-secrets.sh`:
+#!/bin/bash
+
+Auto-generate strong secrets for .env
+echo "APP_SECRET=$(openssl rand -base64 32)"
+echo "JWT_SECRET=$(openssl rand -base64 32)"
+echo "SESSION_SECRET=$(openssl rand -base64 32)"
+echo "PG_PASSWORD=$(openssl rand -base64 24 | tr -d '=' | cut -c1-20)"
+
+text
+Usage: `bash scripts/generate-secrets.sh >> .env`
+
+---
+
+### 2.2 – GitHub Secrets Setup Guide
+
+Provide exact step-by-step instructions in `docs/SETUP-GITHUB.md`:
+
+#### Part 1: Generate GitHub Personal Access Token (PAT)
+
+Step 1: Generate GitHub Personal Access Token (PAT)
+Go to: https://github.com/settings/tokens
+
+Click "Generate new token (classic)" (or fine-grained if preferred)
+
+Name: CLEPTO_DEPLOY_TOKEN
+
+Scopes:
+
+ repo (full control of private repos)
+
+ admin:repo_hook (for webhooks)
+
+ admin:org_hook (if org repos)
+
+Expiration: 90 days (rotate every 90 days)
+
+Click "Generate" → Copy token → Save to secure note / password manager
+
+DO NOT commit this token anywhere
+
+DO NOT share this token via email/chat
+
+Use in Easypanel:
+
+App Settings → Code Source → GitHub
+
+Paste token when prompted
+
+Select repo: cleptoio/Clepto-OS-v1
+
+Select branch: main
+
+Enable "Auto Deploy on Push"
+
+text
+
+#### Part 2: GitHub Secrets for CI/CD (GitHub Actions Fallback)
+
+Step 2: GitHub Secrets for CI/CD (fallback: GitHub Actions)
+If using GitHub Actions instead of Easypanel:
+
+Go to: https://github.com/cleptoio/Clepto-OS-v1/settings/secrets/actions
+
+Click "New repository secret"
+
+Add the following:
+
+Secret Name	Value	How to Generate
+VPS_HOST	Your VPS IP (e.g., 148.230.120.207)	From Hostinger dashboard
+VPS_USER	root (or your SSH user)	SSH user on VPS
+VPS_SSH_PORT	22 (or custom if changed)	Your VPS SSH port
+VPS_SSH_KEY	Your private SSH key content	See below
+DOCKER_REGISTRY_USERNAME	(optional) Docker Hub user	If pushing custom images
+DOCKER_REGISTRY_PASSWORD	(optional) Docker Hub PAT	Docker Hub token
+Generate SSH Key for GitHub Actions:
+```bash
+
+On your laptop (one-time):
+ssh-keygen -t ed25519 -f ~/.ssh/vps_deploy -N ""
+
+View private key (copy entire output):
+cat ~/.ssh/vps_deploy
+
+Copy this to GitHub Secret: VPS_SSH_KEY
+Add public key to VPS (one-time):
+ssh-copy-id -i ~/.ssh/vps_deploy.pub root@YOUR_VPS_IP
+
+Or manually:
+cat ~/.ssh/vps_deploy.pub | ssh root@YOUR_VPS_IP 'cat >> ~/.ssh/authorized_keys'
+```
+
+After adding all secrets, verify in GitHub:
+
+Go to repo → Settings → Secrets → Check all are listed (values hidden)
+
+Checklist:
+ GitHub PAT generated (90-day expiration set)
+
+ PAT saved securely (password manager)
+
+ SSH key generated (ed25519)
+
+ Public key added to VPS
+
+ All 6 secrets added to GitHub (values hidden in UI)
+
+ GitHub token rotated every 90 days (set calendar reminder)
+
+text
+
+---
+
+### 2.3 – Generate & Store App Secrets
+
+In `docs/SETUP-SECRETS.md`:
+
+How to Generate Production Secrets
+CRITICAL: Never commit .env to GitHub. Add to .gitignore.
+
+Method 1: Auto-Generate
+```bash
+bash scripts/generate-secrets.sh > /tmp/secrets.env
+
+Review output
+cat /tmp/secrets.env
+
+Copy values manually to .env file (do NOT commit .env)
+Then securely delete temp file
+shred /tmp/secrets.env
+```
+
+Method 2: Generate Each Individually
+Secret	Command	Copy to .env as
+APP_SECRET	openssl rand -base64 32	APP_SECRET=...
+JWT_SECRET	openssl rand -base64 32	JWT_SECRET=...
+SESSION_SECRET	openssl rand -base64 32	SESSION_SECRET=...
+PG_PASSWORD	openssl rand -base64 24 | tr -d '=' | cut -c1-20	PG_PASSWORD=...
+NOTIFUSE_API_KEY	(from Notifuse dashboard)	NOTIFUSE_API_KEY=...
+N8N_API_KEY	(from n8n settings)	N8N_API_KEY=...
+BACKUP_S3_ACCESS_KEY	(from AWS IAM)	BACKUP_S3_ACCESS_KEY=...
+BACKUP_S3_SECRET_KEY	(from AWS IAM)	BACKUP_S3_SECRET_KEY=...
+Security Checklist:
+ All secrets generated with min 32 chars
+
+ No secrets in git history
+
+ .env in .gitignore
+
+ .env file exists only on VPS + local dev
+
+ Secrets rotated every 90 days (set reminder)
+
+ Backup of secrets stored securely (password manager)
+
+text
+
+---
+
+## PHASE 3 – SECURITY HARDENING (VPS + APP)
+
+### 3.1 – VPS Security (UFW, Fail2Ban, Auto-Updates, Backups)
+
+Create `docs/SECURITY.md`:
+
+VPS Security Hardening
+1. Firewall (UFW)
+SSH into VPS:
+
+```bash
+ssh root@YOUR_VPS_IP
+
+Install UFW
+sudo apt update && sudo apt install -y ufw
+
+Allow SSH (critical: do this FIRST)
+sudo ufw allow ssh
+sudo ufw allow 22/tcp
+
+Allow HTTP/HTTPS (for Traefik)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+Allow n8n (if externally accessible)
+sudo ufw allow 5678/tcp # Optional, comment out if not needed
+
+Deny everything else by default
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+Enable firewall
+sudo ufw enable
+
+Verify
+sudo ufw status
+```
+
+Expected output:
+
+text
+Status: active
+To Action From
+-- ------ ----
+22/tcp Allow Anywhere
+80/tcp Allow Anywhere
+443/tcp Allow Anywhere
+2. Fail2Ban (Brute Force Protection)
+```bash
+
+Install
+sudo apt install -y fail2ban
+
+Enable
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+
+Create SSH jail config
+sudo nano /etc/fail2ban/jail.local
+```
+
+Paste:
+
+text
+[DEFAULT]
+bantime = 3600  # Ban for 1 hour
+findtime = 600  # Within 10 minutes
+maxretry = 5    # After 5 failed attempts
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+bantime = 604800  # Ban repeat offenders for 1 week
+```bash
+
+Restart Fail2Ban
+sudo systemctl restart fail2ban
+
+Check status
+sudo fail2ban-client status sshd
+
+Expected output: Shows failed/banned IPs
+```
+
+3. Automatic OS Updates
+```bash
+
+Install unattended-upgrades
+sudo apt install -y unattended-upgrades apt-listchanges
+
+Edit config
+sudo nano /etc/apt/apt.conf.d/50unattended-upgrades
+```
+
+Uncomment these lines:
+
+bash
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "02:00";  # 2 AM
+Unattended-Upgrade::Mail "your-email@clepto.io";
+Unattended-Upgrade::MailOnlyOnError "true";
+```bash
+sudo systemctl enable unattended-upgrades
+sudo systemctl start unattended-upgrades
+
+Check logs
+sudo tail -f /var/log/unattended-upgrades/unattended-upgrades.log
+
+Verify it runs
+sudo unattended-upgrade -d
+```
+
+4. Offsite Backups (S3 or SFTP)
+Option A: AWS S3
+```bash
+
+Install AWS CLI
+sudo apt install -y awscli
+
+Configure credentials
+aws configure
+
+AWS Access Key ID: [paste from AWS IAM]
+AWS Secret Access Key: [paste]
+Default region: us-east-1
+Default output: json
+```
+
+Create scripts/backup-to-s3.sh:
+
+```bash
+#!/bin/bash
+set -e
+
+BACKUP_DIR="/tmp/clepto-backup"
+S3_BUCKET="clepto-backups-prod"
+S3_REGION="us-east-1"
+RETENTION_DAYS=30
+
+mkdir -p $BACKUP_DIR
+
+Backup database
+echo "Backing up database..."
+docker exec clepto-db pg_dump -U postgres clepto_os | gzip >
+$BACKUP_DIR/clepto-db-$(date +%Y%m%d_%H%M%S).sql.gz
+
+Upload to S3
+echo "Uploading to S3..."
+aws s3 sync $BACKUP_DIR s3://$S3_BUCKET/ --region $S3_REGION
+
+Clean old backups from S3 (keep last 30 days)
+echo "Cleaning old backups..."
+aws s3 ls s3://$S3_BUCKET/ | while read -r line; do
+date=$(echo $line | awk '{print $1" "$2}')
+dateInSeconds=$(date -d "$date" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S" "$date" +%s)
+now=$(date +%s)
+seconds=$((now - dateInSeconds))
+days=$((seconds / 86400))
+if [ $days -gt $RETENTION_DAYS ]; then
+fileName=$(echo $line | awk '{print $NF}')
+aws s3 rm s3://$S3_BUCKET/$fileName --region $S3_REGION
+fi
+done
+
+Clean local
+rm -rf $BACKUP_DIR
+
+echo "✅ Backup completed!"
+```
+
+```bash
+
+Make executable and schedule
+chmod +x scripts/backup-to-s3.sh
+
+Add to crontab (daily at 2 AM)
+crontab -e
+
+Add: 0 2 * * * /opt/clepto/scripts/backup-to-s3.sh >> /var/log/clepto-backup.log 2>&1
+Verify
+crontab -l
+```
+
+Option B: SFTP Backup Server
+Create scripts/backup-to-sftp.sh:
+
+```bash
+#!/bin/bash
+set -e
+
+BACKUP_DIR="/tmp/clepto-backup"
+SFTP_HOST="backup.example.com"
+SFTP_USER="backup-user"
+SFTP_PASSWORD="SFTP_PASSWORD_HERE"
+SFTP_PATH="/backups/clepto"
+RETENTION_DAYS=30
+
+mkdir -p $BACKUP_DIR
+
+Backup database
+echo "Backing up database..."
+docker exec clepto-db pg_dump -U postgres clepto_os | gzip >
+$BACKUP_DIR/clepto-db-$(date +%Y%m%d_%H%M%S).sql.gz
+
+Upload via SFTP
+echo "Uploading to SFTP..."
+sshpass -p "$SFTP_PASSWORD" sftp -oBatchMode=no -b - $SFTP_USER@$SFTP_HOST << EOF
+cd $SFTP_PATH
+mput $BACKUP_DIR/*
+quit
+EOF
+
+Clean local
+rm -rf $BACKUP_DIR
+
+echo "✅ Backup completed!"
+```
+
+5. Verify Backups Regularly (Monthly Test)
+```bash
+
+List S3 backups
+aws s3 ls s3://clepto-backups-prod/
+
+Download latest backup
+aws s3 cp s3://clepto-backups-prod/clepto-db-20250226_020000.sql.gz ./
+
+Test restore (quarterly disaster recovery drill)
+Create test database:
+docker exec -it clepto-db psql -U postgres -c "CREATE DATABASE test_restore;"
+
+Restore backup:
+zcat clepto-db-20250226_020000.sql.gz | docker exec -i clepto-db psql -U postgres -d test_restore
+
+Verify data:
+docker exec -it clepto-db psql -U postgres -d test_restore -c "SELECT COUNT(*) FROM users;"
+```
+
+6. Docker Network Isolation
+Ensure Postgres is NOT exposed to public internet:
+
+```bash
+
+Check running containers
+docker ps
+
+Verify Postgres port is internal only
+docker inspect clepto-db | grep -A 5 "Ports"
+
+Should NOT show "0.0.0.0:5432", only internal Docker networking.
+```
+
+If exposed, update docker-compose.yml:
+
+text
+clepto-db:
+  image: postgres:16
+  environment:
+    POSTGRES_PASSWORD: ${PG_PASSWORD}
+  volumes:
+    - ./pgdata:/var/lib/postgresql/data
+  networks:
+    - clepto-internal
+  # Remove or comment out any "ports:" section
+  # ports:
+  #   - "5432:5432"  # DO NOT expose!
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+Checklist:
+ UFW firewall enabled
+
+ SSH (22), HTTP (80), HTTPS (443) allowed
+
+ Everything else denied by default
+
+ Fail2Ban installed + sshd jail configured
+
+ Auto-updates enabled (unattended-upgrades)
+
+ Backup script running daily (cron job verified)
+
+ Backups stored offsite (S3 or SFTP)
+
+ Postgres NOT exposed to public
+
+ Monthly backup restore test scheduled
+
+text
+
+---
+
+### 3.2 – App Security (2FA, Role‑Based Access, Audit Logs)
+
+Create `docs/APP-SECURITY.md`:
+
+Application Security Configuration
+1. Enforce 2FA for All Users
+After deploying Clepto OS:
+
+Login to https://crm.clepto.io (admin account)
+
+Settings → Security → 2FA
+
+Toggle "Require 2FA for all users"
+
+Users will be prompted on next login to set up TOTP (Google Authenticator, Authy, Microsoft Authenticator)
+
+Env var (for automation):
+
+text
+ENABLE_2FA=true
+TOTP_WINDOW=1
+Backup codes: Have users download backup codes (stored securely separately)
+
+2. Role-Based Access Control (RBAC)
+Twenty CRM has built-in roles:
+
+Admin – Full access, can manage users, settings
+
+Manager – Can manage team/company data
+
+User – Limited to assigned records/teams
+
+Guest (if enabled) – Read-only
+
+Setup in UI:
+
+Settings → Team & Access → Roles
+
+Assign roles to users
+
+Set row-level security (RLS) if available
+
+Audit: Check who has admin → trim down to 1-2 trusted people.
+
+Env var (if applicable):
+
+text
+DEFAULT_ROLE=user
+ENABLE_GUEST_ROLE=false
+3. Audit Log Retention
+All user actions (login, create, update, delete, export) are logged.
+
+Config:
+
+text
+AUDIT_LOG_RETENTION_DAYS=365  # Keep 1 year (compliance)
+AUDIT_LOG_LEVEL=info
+LOG_LEVEL=info  # Don't expose sensitive data in logs
+Access audit logs:
+
+Settings → Activity / Audit Log
+
+Filter by user, date, action
+
+Export for compliance (SOC2, ISO27001 reviews)
+
+Programmatic access (optional):
+
+bash
+# Query audit logs from Postgres
+docker exec clepto-db psql -U postgres -d clepto_os -c \
+  "SELECT * FROM audit_logs WHERE created_at > NOW() - INTERVAL '7 days' ORDER BY created_at DESC LIMIT 100;"
+4. API Keys & Token Rotation
+If using GraphQL API:
+
+Settings → API Keys
+
+Create per-client token (e.g., for n8n, integrations)
+
+Mark expiration (90 days recommended)
+
+Rotate regularly
+
+In n8n workflows, store token in n8n secure credentials, not hardcoded.
+
+Env var:
+
+text
+API_KEY_ROTATION_DAYS=90
+5. Password Policy
+Set in Settings → Security:
+
+Min length: 12 chars
+
+Require mixed case, numbers, symbols
+
+Password history: Last 5 passwords cannot be reused
+
+Expiration: Optional (e.g., 90 days for service accounts, longer for humans)
+
+Env var (if configurable):
+
+text
+PASSWORD_MIN_LENGTH=12
+PASSWORD_REQUIRE_SYMBOLS=true
+PASSWORD_HISTORY_COUNT=5
+6. Session Timeout
+text
+SESSION_TIMEOUT_MINUTES=30  # Idle timeout
+ABSOLUTE_SESSION_TIMEOUT_HOURS=8  # Max session duration
+After timeout, user must re-login.
+
+7. HTTPS Only + HSTS
+Traefik + Let's Encrypt auto-provisions SSL.
+
+Enforce HSTS header (for Traefik):
+
+text
+# In docker-compose.yml, add to Traefik service:
+environment:
+  - TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_MIDDLEWARES=security-headers
+  - TRAEFIK_MIDDLEWARES_SECURITY-HEADERS_HEADERS_SSLREDIRECT=true
+  - TRAEFIK_MIDDLEWARES_SECURITY-HEADERS_HEADERS_STSMAX_AGE=31536000
+  - TRAEFIK_MIDDLEWARES_SECURITY-HEADERS_HEADERS_STSINCLUDESUBDOMAINS=true
+Result: All HTTP redirects to HTTPS; browsers enforce HTTPS for 1 year.
+
+8. Sensitive Data Logging
+Ensure no sensitive data is logged:
+
+bash
+# Check logs for secrets
+grep -r "password\|token\|key\|secret" /var/log/clepto/ | head -10
+# Should return ZERO results (or only debug logs)
+Logs should never contain:
+
+Passwords
+
+API keys
+
+JWT tokens
+
+PII (personal data)
+
+Credit card numbers
+
+Checklist:
+ 2FA enforced for all users (ENABLE_2FA=true)
+
+ Admin roles limited to 1-2 people
+
+ Audit logs retained for 1 year (AUDIT_LOG_RETENTION_DAYS=365)
+
+ Password policy set (min 12 chars, mixed case, symbols)
+
+ Session timeout set (30 min idle, 8 hour max)
+
+ HTTPS + HSTS enforced
+
+ API keys rotate every 90 days
+
+ No sensitive data in logs
+
+ RBAC roles documented
+
+text
+
+---
+
+## PHASE 4 – DEPLOYMENT GUIDE (FIRST TIME + AUTO-DEPLOY)
+
+### 4.1 – Manual First-Time Deployment
+
+Create `docs/DEPLOY.md`:
+
+First-Time Production Deployment
+Prerequisites
+VPS Ubuntu 24.04 with Docker, Traefik already running
+
+Domain crm.clepto.io pointing to VPS IP
+
+All secrets generated (see SETUP-SECRETS.md)
+
+GitHub secrets added (see SETUP-GITHUB.md)
+
+Security hardening complete (see SECURITY.md)
+
+Step 1: SSH into VPS
+```bash
+ssh root@YOUR_VPS_IP
+```
+
+Step 2: Clone Private Repo
+```bash
+mkdir -p /opt/clepto
+cd /opt/clepto
+
+Method A: SSH key (if you've added public key to GitHub)
+git clone git@github.com:cleptoio/Clepto-OS-v1.git .
+
+Method B: HTTPS + PAT (if using token)
+git clone https://YOUR_GITHUB_PAT@github.com/cleptoio/Clepto-OS-v1.git .
+
+(replace YOUR_GITHUB_PAT with actual token)
+```
+
+Step 3: Setup .env
+```bash
+cp .env.example .env
+nano .env
+```
+
+Fill in all required values:
+
+APP_SECRET (from scripts/generate-secrets.sh)
+
+PG_PASSWORD (strong, 32+ chars)
+
+JWT_SECRET, SESSION_SECRET
+
+NOTIFUSE_API_KEY, N8N_WEBHOOK_URL
+
+DOMAIN=crm.clepto.io
+
+BACKUP_S3_* settings
+
+All other security settings
+
+Verify no secrets in git:
+
+bash
+git status
+# Should show: .env is in .gitignore (not tracked)
+Step 4: Validate Environment
+```bash
+
+Run validation script
+bash scripts/validate-env.sh
+
+Expected output: "✅ Environment validation passed"
+```
+
+Step 5: Start Infrastructure
+```bash
+cd /opt/clepto
+
+Pull latest images
+docker compose pull
+
+Start all services
+docker compose up -d
+
+Wait 30 seconds for startup
+sleep 30
+
+Verify
+docker ps
+```
+
+Expected output:
+
+text
+clepto-crm          (backend API)
+clepto-frontend     (React UI)
+clepto-db           (PostgreSQL)
+clepto-redis        (if configured)
+traefik             (reverse proxy)
+Step 6: Check Logs
+```bash
+
+Follow backend logs
+docker logs -f clepto-crm
+
+Once you see "Server listening on ...", proceed.
+Press Ctrl+C to exit logs.
+```
+
+Step 7: Test HTTPS Access
+From your laptop:
+```bash
+curl https://crm.clepto.io
+
+Should return HTML (no SSL errors)
+```
+
+Or open browser:
+
+text
+https://crm.clepto.io
+Should see Clepto CRM login screen.
+
+Step 8: Setup Admin User
+Click "Sign up" (first user becomes admin)
+
+Email: your-email@clepto.io
+
+Password: Strong password (20+ chars, mixed case, symbols)
+
+Verify email (or skip if email not configured yet)
+
+Step 9: Enable Security Features
+Settings → Security
+
+ 2FA: Enable
+
+ Session timeout: 30 min
+
+ Password policy: Strong
+
+Settings → API Keys → Create token for n8n
+
+Settings → Activity → Verify audit logs are being captured
+
+Step 10: Test & Configure Backups
+```bash
+
+Make backup script executable
+chmod +x /opt/clepto/scripts/backup-to-s3.sh
+
+Test backup manually
+bash /opt/clepto/scripts/backup-to-s3.sh
+
+Expected output: "✅ Backup completed!"
+Add to crontab
+crontab -e
+
+Add this line:
+0 2 * * * /opt/clepto/scripts/backup-to-s3.sh >> /var/log/clepto-backup.log 2>&1
+
+Verify
+crontab -l
+```
+
+Step 11: Verify Backup Works (Next Day)
+```bash
+
+Check AWS S3
+aws s3 ls s3://clepto-backups-prod/
+
+Should show today's backup file
+Check log
+tail -50 /var/log/clepto-backup.log
+```
+
+Troubleshooting
+"Connection refused" on https://crm.clepto.io
+```bash
+docker logs clepto-crm
+docker logs traefik
+
+If Traefik: SSL cert not issued
+docker logs traefik | grep -i letsencrypt
+
+Wait 5 min, SSL should auto-issue
+Then test:
+curl -I https://crm.clepto.io
+```
+
+Database connection error
+```bash
+docker logs clepto-db
+
+Verify password in .env matches docker-compose
+grep PG_PASSWORD .env
+grep POSTGRES_PASSWORD docker-compose.yml
+
+If mismatch:
+docker compose down -v
+
+Update .env with correct password
+docker compose up -d
+
+Wait 30 seconds and test
+```
+
+Audit logs not showing
+```bash
+
+Verify env var is set
+grep AUDIT_LOG .env
+
+Check if logs folder exists
+docker exec clepto-crm ls -la /var/log/clepto/ 2>/dev/null || echo "Logs dir not found"
+
+If missing, enable in .env:
+AUDIT_LOG_LEVEL=info
+docker restart clepto-crm
+
+Wait 30 seconds and test
+```
+
+Backup script fails
+```bash
+
+Run manually with debug
+bash -x /opt/clepto/scripts/backup-to-s3.sh
+
+Verify AWS CLI is configured
+aws s3 ls
+
+Verify S3 bucket exists and credentials are correct
+aws s3 ls s3://clepto-backups-prod/
+
+Check IAM user has correct permissions (s3:PutObject, s3:DeleteObject)
+```
+
+2FA not working
+```bash
+
+Verify 2FA is enabled in .env
+grep ENABLE_2FA .env # Should be: ENABLE_2FA=true
+
+Check server time (TOTP depends on accurate time)
+date
+
+If time is off:
+sudo timedatectl set-ntp true
+sudo systemctl restart systemd-timesyncd
+
+Restart app
+docker restart clepto-crm
+```
+
+Post-Deployment Checklist
+ VPS clean (n8n + Traefik + Clepto running)
+
+ HTTPS working (SSL certificate issued)
+
+ Admin user created
+
+ 2FA enabled
+
+ Audit logs appearing
+
+ First backup completed successfully
+
+ Email sending (if configured)
+
+ API working (test GraphQL endpoint)
+
+ n8n connected (test webhook)
+
+ All team members added
+
+text
+
+---
+
+### 4.2 – Auto-Deploy via Easypanel
+
+Create `docs/SETUP-EASYPANEL.md`:
+
+Easypanel Auto-Deploy Setup
+Assumption: Easypanel already installed on your VPS.
+
+Step 1: Connect GitHub to Easypanel
+Easypanel Dashboard: https://YOUR_VPS_IP:3000
+
+Settings → Code Sources → Add GitHub
+
+Authorize Easypanel (OAuth) - will redirect to GitHub
+
+Select repo: cleptoio/Clepto-OS-v1
+
+Save
+
+Step 2: Create New App in Easypanel
+Dashboard → Apps → Add App
+
+Name: Clepto CRM
+
+Source: GitHub → cleptoio/Clepto-OS-v1
+
+Branch: main
+
+Build type: Docker Compose (or Dockerfile, depending on repo structure)
+
+Build command: (leave default, or specify if needed)
+
+Click "Create"
+
+Step 3: Configure Environment Variables
+Easypanel → App Settings → Environment Variables
+
+Add all from .env.example:
+
+APP_SECRET
+
+JWT_SECRET, SESSION_SECRET
+
+PG_PASSWORD
+
+NOTIFUSE_API_KEY
+
+N8N_WEBHOOK_URL
+
+BACKUP_S3_* settings
+
+AUDIT_LOG_RETENTION_DAYS
+
+ENABLE_2FA
+
+RATE_LIMIT_*
+
+CORS_ALLOWED_ORIGINS
+
+etc.
+
+Do NOT paste values in plain text; use Easypanel's "Secrets" feature to encrypt them.
+
+Step 4: Enable Auto-Deploy on Push
+Easypanel → App Settings → Deployments
+
+ "Auto deploy on push to main branch"
+
+ Save
+
+Now, every git push origin main triggers:
+
+Code pull
+
+Docker image build
+
+Container restart (zero downtime if using reload strategy)
+
+Step 5: Test Auto-Deploy Workflow
+bash
+# On your laptop
+cd ~/projects/Clepto-OS-v1  # your local clone
+
+# Make a small change
+echo "# Test deploy v1" >> README.md
+
+# Commit & push
+git add README.md
+git commit -m "test: easypanel auto-deploy"
+git push origin main
+
+# Watch Easypanel dashboard
+# → Builds → Status should change to "Building" → "Completed"
+
+# Verify in browser
+curl https://crm.clepto.io
+# Should still work (no downtime)
+Step 6: Monitor Logs
+Easypanel → App → Logs
+
+View real-time logs of deployment and runtime. Much easier than SSH + docker logs.
+
+Rollback (If Deploy Fails)
+bash
+# Option 1: Via GitHub (recommended)
+# On your laptop:
+git revert HEAD  # Creates new commit that undoes last change
+git push origin main
+# Easypanel auto-deploys the previous commit within 2-5 min
+
+# Option 2: Via Easypanel UI
+# Easypanel → App → Deployments → Select previous successful deployment → Rollback
+
+# Option 3: Manual SSH (if Easypanel down)
+ssh root@YOUR_VPS_IP
+cd /opt/clepto
+git log --oneline | head -5  # See recent commits
+git checkout <previous-commit-hash>
+docker compose up -d --build
+Daily Workflow
+See docs/USER_GUIDE.md for how to update Clepto OS going forward.
+
+text
+
+---
+
+### 4.3 – GitHub Actions (Alternative Fallback)
+
+Create `.github/workflows/deploy.yml`:
+
+name: Deploy Clepto OS to VPS
+
+on:
+push:
+branches:
+- main
+workflow_dispatch: # Allow manual trigger
+
+jobs:
+deploy:
+runs-on: ubuntu-latest
+
+text
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v4
+  
+  - name: Deploy to VPS
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+    
+    run: |
+      # Create SSH key from secret
+      mkdir -p ~/.ssh
+      echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+      chmod 600 ~/.ssh/deploy_key
+      
+      # Verify key format
+      if ! ssh-keygen -l -f ~/.ssh/deploy_key > /dev/null; then
+        echo "ERROR: Invalid SSH key format"
+        exit 1
+      fi
+      
+      # Deploy
+      ssh -i ~/.ssh/deploy_key \
+        -p $VPS_SSH_PORT \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        $VPS_USER@$VPS_HOST << 'DEPLOY_SCRIPT'
+        
+        set -e
+        cd /opt/clepto || exit 1
+        
+        echo "🔄 Pulling latest code..."
+        git pull origin main
+        
+        echo "🛑 Stopping old containers..."
+        docker compose down
+        
+        echo "🔨 Building and starting new containers..."
+        docker compose up -d --build
+        
+        echo "⏳ Waiting for services to start..."
+        sleep 10
+        
+        echo "✅ Deployment successful!"
+        docker ps
+        
+      DEPLOY_SCRIPT
+  
+  - name: Verify deployment
+    run: |
+      sleep 10
+      curl -f https://crm.clepto.io || exit 1
+      echo "✅ App is live!"
+  
+  - name: Notify deployment status
+    if: always()
+    run: |
+      if [ "${{ job.status }}" == "success" ]; then
+        echo "✅ Deployment succeeded"
+      else
+        echo "❌ Deployment failed"
+        exit 1
+      fi
+text
+
+---
+
+## PHASE 5 – "HOW I UPDATE CLEPTO OS" (Daily Workflow)
+
+Create `docs/USER_GUIDE.md` with this section:
+
+How I Update Clepto OS (Daily Workflow)
+This is the simple process you'll use every time you update the app.
+
+Scenario 1: UI/Logic Changes (90% of updates)
+```bash
+
+On your laptop
+cd ~/projects/Clepto-OS-v1 # your local clone
+
+(Optional) Pull latest from GitHub
+git pull origin main
+
+Make your changes
+- Edit React components in apps/clepto-crm/src/
+- Edit API logic in apps/clepto-api/src/
+- Edit database schema in migrations/
+- Use your editor: VS Code, Cursor, Claude, etc.
+nano apps/clepto-crm/src/pages/Dashboard.tsx
+
+... make changes ...
+Test locally (if you can)
+npm run dev # in appropriate directory
+
+... verify changes work locally ...
+Commit with clear message
+git add .
+git commit -m "feat: add new dashboard widget
+
+Added revenue chart
+
+Added user growth metrics
+
+Added export to PDF button"
+
+Push to GitHub
+git push origin main
+```
+
+What happens automatically:
+
+✅ GitHub Actions / Easypanel detects push to main
+
+✅ Code pulled on VPS from your private repo
+
+✅ Docker images rebuilt (only changed layers)
+
+✅ Containers restarted (minimal downtime)
+
+✅ HTTPS live within 2-5 minutes
+
+✅ Users see your changes without you doing anything else
+
+Verify changes:
+
+Open https://crm.clepto.io in browser
+
+Test the feature you added
+
+Check Easypanel/GitHub Actions logs if anything is wrong
+
+Scenario 2: Environment / Config Changes (5% of updates)
+Changes to .env.example, security settings, etc.
+
+```bash
+
+Update .env.example (to document new var)
+nano .env.example
+
+Add: NEW_API_KEY=YOUR_KEY_HERE
+Commit
+git add .env.example
+git commit -m "config: add NEW_API_KEY setting"
+git push origin main
+```
+
+Then manually in Easypanel or on VPS:
+
+Easypanel UI: App Settings → Environment Variables → Add NEW_API_KEY with value
+
+Or SSH: ssh root@YOUR_VPS_IP, edit .env directly, docker restart clepto-crm
+
+Scenario 3: Database Schema Changes (Rare)
+If you modify database schema (add table/column):
+
+```bash
+
+Create migration file (example)
+cat > migrations/001_add_new_table.sql << 'EOF'
+CREATE TABLE new_feature (
+id SERIAL PRIMARY KEY,
+user_id INT REFERENCES users(id),
+data TEXT,
+created_at TIMESTAMP DEFAULT NOW()
+);
+EOF
+
+Commit
+git add migrations/
+git commit -m "db: add new_feature table"
+git push origin main
+```
+
+Then manually run migration on VPS (after deploy completes):
+```bash
+ssh root@YOUR_VPS_IP
+cd /opt/clepto
+docker exec -i clepto-db psql -U postgres -d clepto_os < migrations/001_add_new_table.sql
+
+Verify:
+docker exec -i clepto-db psql -U postgres -d clepto_os -c "\dt"
+```
+
+Scenario 4: Infrastructure Changes (Very Rare)
+If you change docker-compose.yml or system settings:
+
+```bash
+git add docker-compose.yml
+git commit -m "infra: upgrade postgres to v17"
+git push origin main
+```
+
+Verify deployment:
+```bash
+
+SSH to VPS
+ssh root@YOUR_VPS_IP
+cd /opt/clepto
+
+Wait for auto-deploy to finish
+docker logs -f clepto-crm | grep -i "error|listening"
+
+Once done, verify
+docker ps
+docker logs clepto-db | tail -20 # Check DB started OK
+```
+
+Rollback (If Something Breaks)
+If you discover a bug after pushing:
+
+```bash
+
+On your laptop - create a "revert" commit
+git log --oneline # Find the bad commit
+
+git revert HEAD # Creates new commit that undoes previous
+
+Edit the auto-generated commit message if needed
+git push origin main
+
+VPS auto-redeploys to the reverted state within 2-5 min
+```
+
+Or go back multiple commits:
+
+```bash
+
+Find the good commit
+git log --oneline
+
+Go back to it
+git reset --hard <commit-hash>
+git push --force origin main
+
+VPS auto-redeploys to that commit
+```
+
+Emergency Access (If Auto-Deploy Down)
+If Easypanel is down and you need to deploy manually:
+
+```bash
+ssh root@YOUR_VPS_IP
+cd /opt/clepto
+
+Manual deploy
+git pull origin main
+docker compose down
+docker compose up -d --build
+
+Wait and check
+sleep 10
+docker ps
+docker logs clepto-crm | tail -50
+```
+
+Weekly Monitoring (Optional)
+Once a week, spend 5 minutes checking:
+
+```bash
+
+SSH once a week
+ssh root@YOUR_VPS_IP
+
+Check containers are healthy
+docker ps
+
+All should be "Up X hours"
+Check disk space
+df -h
+
+Should be >20% free on / and on data partitions
+Check logs for errors
+docker logs clepto-crm --tail 100 | grep -i error
+docker logs clepto-db --tail 50 | grep -i error
+
+List recent backups (verify they're happening)
+aws s3 ls s3://clepto-backups-prod/ | tail -5
+
+Should show daily backups
+Check Fail2Ban is active
+sudo fail2ban-client status sshd
+```
+
+Summary
+Edit code → git commit → git push
+
+Wait 2-5 min → Auto-deploy happens
+
+Verify → Open https://crm.clepto.io
+
+Monitor → Check logs if anything weird
+
+That's it! 🚀
+
+text
+
+---
+
+## PHASE 6 – FINAL SECURITY & QUALITY CHECKLIST
+
+Before marking "ready for production", provide:
+
+### 6.1 – Code Review Summary Report
+
+Create `SECURITY-AUDIT-REPORT.md` with:
+
+Security Audit Report – Clepto OS v1
+Audit Date: [TODAY]
+Auditor: Claude Code AI
+Status: [GO / NO-GO]
+
+Executive Summary
+Brief 2-3 sentence assessment of overall security posture.
+
+Code Security Review (13-Point Checklist)
+TOP 5 – API & Authentication
+ ✅ Rate limiting on all endpoints? (Y/N) Details:
+
+ ✅ No API keys in client code? (Y/N) Details:
+
+ ✅ Auth on internal endpoints? (Y/N) Details:
+
+ ✅ CORS properly scoped? (Y/N) Details:
+
+ ✅ Input validation + sanitization? (Y/N) Details:
+
+NEXT 5 – Dependencies & Logic
+ ✅ No typo-squatted packages? (Y/N) Details:
+
+ ✅ No missing XSS sanitization? (Y/N) Details:
+
+ ✅ Dependencies up-to-date? (Y/N) Details:
+
+ ✅ Business logic sound? (Y/N) Details:
+
+ ✅ Error handling complete? (Y/N) Details:
+
+LAST 3 – Performance & Environment
+ ✅ DoS protections in place? (Y/N) Details:
+
+ ✅ Token expiration enforced? (Y/N) Details:
+
+ ✅ Local vs Prod separation correct? (Y/N) Details:
+
+Vulnerabilities Found
+CRITICAL (Must fix before deploy)
+[List any CRITICAL issues]
+
+Remediation for each
+
+MEDIUM (Should fix before deploy)
+[List any MEDIUM issues]
+
+Remediation for each
+
+LOW (Nice-to-have, can defer)
+[List any LOW issues]
+
+Remediation for each
+
+None Found ✅
+(If no vulnerabilities, state this clearly)
+
+Infrastructure Security
+ UFW firewall configured correctly
+
+ Fail2Ban protecting SSH
+
+ Auto-updates enabled
+
+ Backups scheduled + tested
+
+ Postgres not exposed
+
+ 2FA enforced in app
+
+ Audit logs configured
+
+ HTTPS + HSTS enabled
+
+Compliance Readiness
+SOC2 Type I / ISO27001 Basic:
+
+ Access controls (RBAC, 2FA)
+
+ Data protection (encryption in transit, backups)
+
+ Audit logging (365 day retention)
+
+ Incident response (error handling, logging)
+
+Recommendations
+[Priority 1: Must do]
+
+[Priority 2: Should do in 30 days]
+
+[Priority 3: Do eventually]
+
+Final Verdict
+SECURITY RATING: ⭐⭐⭐⭐⭐ (5/5 stars)
+
+DEPLOYMENT READINESS: ✅ APPROVED FOR PRODUCTION
+
+OR
+
+DEPLOYMENT READINESS: ❌ BLOCKED - Fix [CRITICAL issues] first
+
+Next Steps:
+
+[If issues found]: Developer fixes + re-audit
+
+[If approved]: Proceed to DEPLOY.md
+
+[Ongoing]: Quarterly security reviews + dependency updates
+
+text
+
+---
+
+### 6.2 – Documentation Completeness
+
+Verify all docs are created + reviewed:
+
+Documentation Checklist
+ .env.example – Complete, all vars explained
+
+ docs/SETUP-SECRETS.md – How to generate secrets
+
+ docs/SETUP-GITHUB.md – GitHub PAT + SSH keys
+
+ docs/SECURITY.md – UFW, Fail2Ban, backups
+
+ docs/APP-SECURITY.md – 2FA, RBAC, audit logs
+
+ docs/DEPLOY.md – Step-by-step first deploy
+
+ docs/SETUP-EASYPANEL.md – Auto-deploy via Easypanel
+
+ docs/USER_GUIDE.md – Daily workflow (update + rollback)
+
+ .github/workflows/deploy.yml – GitHub Actions CI/CD
+
+ scripts/generate-secrets.sh – Auto-gen secrets
+
+ scripts/backup-to-s3.sh – Daily backups
+
+ scripts/validate-env.sh – Env validation
+
+ .gitignore – Excludes .env, secrets, sensitive files
+
+ SECURITY-AUDIT-REPORT.md – Final audit report
+
+text
+
+---
+
+## DELIVERABLES SUMMARY
+
+By the end, you will have provided:
+
+1. **Code reviewed** → 13-point security checklist completed
+2. **Vulnerabilities identified** → CRITICAL/MEDIUM/LOW list + fixes
+3. **.env.example** → Complete, production-ready
+4. **docker-compose.yml** → Secure, all config from .env
+5. **docs/SETUP-SECRETS.md** → How to generate secrets
+6. **docs/SETUP-GITHUB.md** → GitHub PAT + SSH key setup
+7. **docs/SECURITY.md** → UFW, Fail2Ban, auto-updates, backups, HTTPS
+8. **docs/APP-SECURITY.md** → 2FA, RBAC, audit logs, token expiration
+9. **docs/DEPLOY.md** → Step-by-step first-time deployment
+10. **docs/SETUP-EASYPANEL.md** → Auto-deploy via Easypanel
+11. **.github/workflows/deploy.yml** → GitHub Actions fallback
+12. **docs/USER_GUIDE.md** → Daily workflow (update, rollback, monitor)
+13. **scripts/generate-secrets.sh** → Auto-generate strong secrets
+14. **scripts/backup-to-s3.sh** → Daily offsite backups
+15. **scripts/validate-env.sh** → Environment validation
+16. **SECURITY-AUDIT-REPORT.md** → Final go/no-go decision
+
+---
+
+## SPECIAL NOTES
+
+- **Keep it practical**: You are writing for a solo founder who can run SSH + Docker commands but doesn't want to debug for hours.
+- **Be explicit**: Every step has a command to run + expected output.
+- **Security first**: All prompts, guides, and configs prioritize security.
+- **Tested mindset**: Assume user will follow docs word-for-word.
+- **Compliance-ready**: UFW + Fail2Ban + 2FA + audit logs cover basic SOC2/ISO27001.
+- **No real secrets**: All secrets are placeholders; user adds real values to GitHub/Easypanel.
+
+---
