@@ -13,8 +13,8 @@ mkdir -p $BACKUP_DIR
 
 echo "🔄 Starting Clepto OS database backup..."
 
-# Backup database
-docker exec postgres-16-alpine pg_dump -U clepto clepto_os | gzip > \
+# Backup database (using container name from docker-compose.yml)
+docker exec clepto-db pg_dump -U ${PG_USER:-postgres} ${PG_DATABASE:-clepto_os} | gzip > \
   $BACKUP_DIR/clepto-db-$TIMESTAMP.sql.gz
 
 echo "✅ Backup created: clepto-db-$TIMESTAMP.sql.gz"

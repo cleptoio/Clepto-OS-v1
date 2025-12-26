@@ -1,6 +1,19 @@
 // ============================================
 // Clepto OS - Main Application JavaScript
 // ============================================
+// 
+// ⚠️ SECURITY NOTE (2025-12-26):
+// This frontend currently uses STATIC/HARDCODED data only.
+// The innerHTML usage is SAFE because data is from local code, 
+// NOT from user input or external APIs.
+//
+// 🚨 WHEN CONNECTING TO BACKEND API:
+// 1. Install DOMPurify: npm install dompurify
+// 2. Sanitize ALL API responses before innerHTML:
+//    import DOMPurify from 'dompurify';
+//    container.innerHTML = DOMPurify.sanitize(apiResponse);
+// 3. Prefer textContent over innerHTML where possible
+// ============================================
 
 // State Management
 const app = {
