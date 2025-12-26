@@ -11,11 +11,11 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-crm-data:
-  postgres-mail-data:
+  postgres-data:
   redis-data:
   clepto-uploads:
   traefik-certs:
+
 
 services:
   # ------------------------------------------
@@ -54,43 +54,27 @@ services:
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
 
   # ------------------------------------------
-  # POSTGRESQL - CRM Database
+  # POSTGRESQL - Main Database
   # ------------------------------------------
-  postgres-crm:
+  clepto-db:
     image: postgres:16-alpine
-    container_name: clepto-postgres-crm
+    container_name: clepto-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_CRM_NAME}
-      POSTGRES_USER: ${DB_CRM_USER}
-      POSTGRES_PASSWORD: ${DB_CRM_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
     volumes:
-      - postgres-crm-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - clepto-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_CRM_USER} -d ${DB_CRM_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ------------------------------------------
-  # POSTGRESQL - Mail Database
-  # ------------------------------------------
-  postgres-mail:
-    image: postgres:16-alpine
-    container_name: clepto-postgres-mail
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_MAIL_NAME}
-      POSTGRES_USER: ${DB_MAIL_USER}
-      POSTGRES_PASSWORD: ${DB_MAIL_PASSWORD}
-    volumes:
-      - postgres-mail-data:/var/lib/postgresql/data
-    networks:
-      - clepto-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_MAIL_USER} -d ${DB_MAIL_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DATABASE}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -107,27 +91,28 @@ services:
       - redis-data:/data
     networks:
       - clepto-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
-
   # ------------------------------------------
-  # CLEPTO CRM (Twenty.crm - Coming Soon)
+  # CLEPTO CRM (Frontend + API)
   # ------------------------------------------
-  # Note: This will be added in Phase 3 after customizing Twenty.crm
   # clepto-crm:
-  #   build:
-  #     context: ../apps/clepto-crm
-  #     dockerfile: Dockerfile
+  #   build: ./apps/clepto-crm
   #   container_name: clepto-crm
   #   restart: unless-stopped
   #   depends_on:
-  #     - postgres-crm
+  #     - clepto-db
   #     - redis
   #   environment:
-  #     DATABASE_URL: postgresql://${DB_CRM_USER}:${DB_CRM_PASSWORD}@postgres-crm:5432/${DB_CRM_NAME}
+  #     DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@clepto-db:5432/${PG_DATABASE}
   #     REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
   #     FRONTEND_URL: ${CRM_FRONTEND_URL}
   #     JWT_SECRET: ${JWT_SECRET}
@@ -135,6 +120,11 @@ services:
   #     - clepto-uploads:/app/storage
   #   networks:
   #     - clepto-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
   #   labels:
   #     - "traefik.enable=true"
   #     - "traefik.http.routers.clepto-crm.rule=Host(`${CRM_DOMAIN}`)"
@@ -142,35 +132,10 @@ services:
   #     - "traefik.http.routers.clepto-crm.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.clepto-crm.loadbalancer.server.port=3000"
 
-  # ------------------------------------------
-  # CLEPTO MAIL (Notifuse - Coming Soon)
-  # ------------------------------------------
-  # Note: This will be added in Phase 5 after integrating Notifuse
-  # clepto-mail:
-  #   build:
-  #     context: ../apps/clepto-mail
-  #     dockerfile: Dockerfile
-  #   container_name: clepto-mail
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - postgres-mail
-  #   environment:
-  #     DATABASE_URL: postgresql://${DB_MAIL_USER}:${DB_MAIL_PASSWORD}@postgres-mail:5432/${DB_MAIL_NAME}
-  #     SMTP_HOST: ${SMTP_HOST}
-  #     SMTP_PORT: ${SMTP_PORT}
-  #   networks:
-  #     - clepto-network
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.clepto-mail.rule=Host(`${MAIL_DOMAIN}`)"
-  #     - "traefik.http.routers.clepto-mail.entrypoints=websecure"
-  #     - "traefik.http.routers.clepto-mail.tls.certresolver=letsencrypt"
-  #     - "traefik.http.services.clepto-mail.loadbalancer.server.port=8080"
-
-# ============================================
-# NOTES
-# ============================================
-# To start: docker-compose up -d
-# To stop: docker-compose down
-# To view logs: docker-compose logs -f
-# To rebuild: docker-compose up -d --build
+  # ============================================
+  # NOTES
+  # ============================================
+  # To start: docker-compose up -d
+  # To stop: docker-compose down
+  # To view logs: docker-compose logs -f
+  # To rebuild: docker-compose up -d --build
