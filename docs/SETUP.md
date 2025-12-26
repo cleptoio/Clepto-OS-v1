@@ -4,6 +4,12 @@
 
 ---
 
+> ⚠️ **SECURITY FIRST!**  
+> Before deploying, you MUST complete **Step 0: Security Hardening**  
+> This protects your VPS from attacks. **Do not skip this!**
+
+---
+
 ## 📋 What You'll Need
 
 Before starting, have these ready:
@@ -11,6 +17,115 @@ Before starting, have these ready:
 - ✅ VPS access: `ssh root@148.230.120.207`
 - ✅ Domain: `crm.clepto.io` (will configure DNS)
 - ✅ n8n: https://n8n.srv1003656.hstgr.cloud/
+
+---
+
+## Step 0: Security Hardening (MANDATORY - 10 minutes)
+
+**Do this FIRST, before anything else!**
+
+SSH into your VPS:
+```bash
+ssh root@148.230.120.207
+```
+
+### 0.1 Enable Firewall (UFW)
+
+```bash
+# Install UFW
+sudo apt update && sudo apt install -y ufw
+
+# CRITICAL: Allow SSH first (or you'll lock yourself out!)
+sudo ufw allow 22/tcp
+
+# Allow HTTP/HTTPS for Traefik
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Deny everything else
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Enable firewall
+sudo ufw enable
+
+# Verify
+sudo ufw status
+```
+
+**Expected output:**
+```
+Status: active
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere
+80/tcp                     ALLOW       Anywhere
+443/tcp                    ALLOW       Anywhere
+```
+
+### 0.2 Install Fail2Ban (Brute Force Protection)
+
+```bash
+# Install Fail2Ban
+sudo apt install -y fail2ban
+
+# Create config
+sudo nano /etc/fail2ban/jail.local
+```
+
+Paste this:
+```ini
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+```
+
+Save: `Ctrl+X`, `Y`, `Enter`
+
+Then:
+```bash
+# Start Fail2Ban
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+
+# Verify
+sudo fail2ban-client status sshd
+```
+
+### 0.3 Enable Automatic Security Updates
+
+```bash
+# Install unattended-upgrades
+sudo apt install -y unattended-upgrades apt-listchanges
+
+# Enable auto-reboot at 2 AM if needed
+sudo nano /etc/apt/apt.conf.d/50unattended-upgrades
+```
+
+Add these lines (or uncomment if present):
+```
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+```
+
+Save: `Ctrl+X`, `Y`, `Enter`
+
+```bash
+# Enable the service
+sudo systemctl enable unattended-upgrades
+sudo systemctl start unattended-upgrades
+```
+
+### ✅ Security Checklist Complete!
+
+Your VPS is now hardened. Continue to Step 1.
 
 ---
 
