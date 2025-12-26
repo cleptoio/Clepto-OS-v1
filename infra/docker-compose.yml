@@ -5,7 +5,7 @@ version: '3.8'
 # ============================================
 # CUSTOMIZED FOR: Mayank's VPS (148.230.120.207)
 # - Uses EXISTING Traefik (root-traefik-1)
-# - Uses EXISTING network: traefik-network
+# - Uses EXISTING network: root_default
 # - Database internal only, no exposed ports
 # ============================================
 
@@ -13,7 +13,7 @@ version: '3.8'
 networks:
   clepto-internal:
     driver: bridge
-  traefik-network:
+  root_default:
     external: true # Connect to YOUR existing Traefik
 
 volumes:
@@ -77,10 +77,43 @@ services:
       retries: 5
 
   # ------------------------------------------
+  # CLEPTO API - Backend "The Brain"
+  # ------------------------------------------
+  clepto-api:
+    build: ../apps/clepto-api
+    container_name: clepto-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PG_HOST: clepto-db
+      PG_PORT: 5432
+      PG_DATABASE: ${PG_DATABASE:-clepto_os}
+      PG_USER: ${PG_USER:-clepto}
+      PG_PASSWORD: ${PG_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+    networks:
+      - clepto-internal
+      - root_default
+    depends_on:
+      - clepto-db
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=root_default"
+      - "traefik.http.routers.api.rule=Host(`crm.clepto.io`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.api.loadbalancer.server.port=3000"
+      - "traefik.http.routers.api.priority=100"
+
+  # ------------------------------------------
   # CLEPTO CRM - Web Application
   # ------------------------------------------
   # Serves the static frontend for now
-  # Will be replaced with full backend in Phase 6
+  # Backend will be integrated via /api
+
   clepto-crm:
     image: nginx:alpine
     container_name: clepto-crm
@@ -89,19 +122,31 @@ services:
       - ../apps/clepto-crm/public:/usr/share/nginx/html:ro
     networks:
       - clepto-internal
-      - traefik-network # YOUR existing Traefik network
+      - root_default # YOUR existing Traefik network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.clepto-crm.rule=Host(`crm.clepto.io`)"
-      - "traefik.http.routers.clepto-crm.entrypoints=websecure"
-      - "traefik.http.routers.clepto-crm.tls.certresolver=letsencrypt"
-      - "traefik.http.services.clepto-crm.loadbalancer.server.port=80"
+      # IMPORTANT: Tell Traefik which network to use
+      - "traefik.docker.network=root_default"
+
+      # HTTP router (redirect)
+      - "traefik.http.routers.crm.rule=Host(`crm.clepto.io`)"
+      - "traefik.http.routers.crm.entrypoints=web"
+
+      # HTTPS router
+      - "traefik.http.routers.crm-secure.rule=Host(`crm.clepto.io`)"
+      - "traefik.http.routers.crm-secure.entrypoints=websecure"
+      - "traefik.http.routers.crm-secure.tls=true"
+      - "traefik.http.routers.crm-secure.tls.certresolver=mytlschallenge"
+
+      # Service definition
+      - "traefik.http.services.crm.loadbalancer.server.port=80"
+
       # Security headers
       - "traefik.http.middlewares.clepto-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.clepto-headers.headers.stsIncludeSubdomains=true"
       - "traefik.http.middlewares.clepto-headers.headers.frameDeny=true"
       - "traefik.http.middlewares.clepto-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.routers.clepto-crm.middlewares=clepto-headers"
+      - "traefik.http.routers.crm-secure.middlewares=clepto-headers"
     deploy:
       resources:
         limits:
