@@ -24,60 +24,47 @@ All in one beautifully designed, self-hosted platform with **full control over y
 
 ## ✨ Features
 
-- 🎨 **Modern Dark UI** - Sleek interface with Clepto branding (#0e172f, #0bd7d4)
-- 🔐 **Role-Based Access** - Admin, Sales, Marketing, HR, Operations, Developer roles
-- 🤖 **Automated Workflows** - Powered by n8n for document generation, reports, and alerts
-- 📧 **Built-in Email** - Send campaigns and transactional emails
-- 📊 **Real-time Dashboards** - Track revenue, projects, and team performance
-- 🐳 **Docker-Based** - Easy deployment and updates
+### 🖥️ Clepto CRM (Frontend)
+- **Dashboard**: Real-time business overview with charts and activity feed.
+- **Contacts**: Manage verified contacts with VIP status.
+- **Projects**: Kanban-style project tracking.
+- **UI/UX**: Premium dark theme designed for enterprise use.
+
+### 🧠 Clepto API (Backend Service)
+- **Authentication**: Secure Login/JWT-based session management.
+- **Database**: PostgreSQL integration for persistent data.
+- **API**: RESTful endpoints for user management and CRM data.
+- **Security**: Helmet headers, CORS protection, and input sanitization.
 
 ---
 
-## 📚 Documentation
+## 🚀 Quick Start (Local Development)
 
-**→ [Complete Setup Guide](docs/SETUP.md)** - Everything you need to deploy Clepto OS
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (optional, for local script execution)
 
-**After Deployment:**
-- [Daily Operations Guide](docs/USER_GUIDE.md) - How to update, backup, and manage
-
-**Technical Reference:**
-- [Security Audit](SECURITY-AUDIT-REPORT.md) - Security compliance status
-- [Architecture](docs/ARCHITECTURE.md) - System design overview
-
----
-
-## 🛠️ Tech Stack
-
-- **Backend**: NestJS (TypeScript) + Go
-- **Frontend**: React + TypeScript
-- **Database**: PostgreSQL
-- **Cache**: Redis
-- **Automation**: n8n
-- **Infrastructure**: Docker + Traefik + Easypanel
-
-Built on top of [Twenty.crm](https://github.com/twentyhq/twenty) and [Notifuse](https://github.com/Notifuse/notifuse).
-
----
-
-## 🚀 Quick Start
-
-> **✨ NEW: View the Stunning UI Now!**
-
-### See the Clepto CRM (No Setup Required)
-
+### 1. Start Everything (Frontend + Backend + DB)
 **Windows**:
 ```cmd
-# Double-click this file or run in terminal:
 start-crm.bat
 ```
 
 **Mac/Linux**:
 ```bash
-chmod +x start-crm.sh
 ./start-crm.sh
 ```
 
-Then open: **http://localhost:8000** 🎉
+This command will:
+1. Start the Docker containers (DB, Redis, API, Frontend)
+2. Seed the database with the default Admin user
+3. Launch the CRM in your browser
+
+### default Credentials
+- **Email:** `admin@clepto.io`
+- **Password:** `admin123`
+
+---
 
 ### Deploy to VPS (Full Setup)
 
