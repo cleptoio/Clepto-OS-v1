@@ -35,13 +35,14 @@ All in one beautifully designed, self-hosted platform with **full control over y
 
 ## 📚 Documentation
 
-**Quick Start:**
-- **[Complete Setup Guide](docs/SETUP.md)** - **START HERE!** Everything you need in one place
+**→ [Complete Setup Guide](docs/SETUP.md)** - Everything you need to deploy Clepto OS
 
-**Additional Docs:**
-- **[Security Audit](SECURITY-AUDIT-REPORT.md)** - Security status & compliance
-- **[User Guide](docs/USER_GUIDE.md)** - Daily operations after deployment
-- **[Architecture](docs/ARCHITECTURE.md)** - Technical deep dive
+**After Deployment:**
+- [Daily Operations Guide](docs/USER_GUIDE.md) - How to update, backup, and manage
+
+**Technical Reference:**
+- [Security Audit](SECURITY-AUDIT-REPORT.md) - Security compliance status
+- [Architecture](docs/ARCHITECTURE.md) - System design overview
 
 ---
 
