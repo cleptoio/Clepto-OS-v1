@@ -20,6 +20,7 @@ volumes:
   postgres-data:
   redis-data:
   clepto-uploads:
+  notifuse-data:
 
 
 services:
@@ -122,6 +123,14 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@clepto-redis:6379
       APP_SECRET: ${APP_SECRET}
       STORAGE_TYPE: local
+
+      # EMAIL (Resend)
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-notifications@clepto.io}
+      EMAIL_DRIVER: smtp
+      EMAIL_SMTP_HOST: smtp.resend.com
+      EMAIL_SMTP_PORT: 465
+      EMAIL_SMTP_USER: resend
+      EMAIL_SMTP_PASSWORD: ${RESEND_API_KEY}
     volumes:
       - clepto-uploads:/app/packages/twenty-server/.local-storage
     networks:
@@ -177,6 +186,69 @@ services:
         condition: service_healthy
       twenty-server:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ------------------------------------------
+  # NOTIFUSE - Email & Campaigns Engine
+  # ------------------------------------------
+  notifuse:
+    image: notifuse/notifuse:latest
+    container_name: notifuse
+    restart: unless-stopped
+    environment:
+      # Server Configuration
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      ENVIRONMENT: production
+
+      # Database Configuration (using shared PostgreSQL)
+      DB_HOST: clepto-db
+      DB_PORT: 5432
+      DB_USER: ${PG_USER:-clepto}
+      DB_PASSWORD: ${PG_PASSWORD}
+      DB_PREFIX: notifuse
+      DB_NAME: notifuse
+      DB_SSLMODE: disable
+
+      # Secret Key (generate unique one for production)
+      SECRET_KEY: ${NOTIFUSE_SECRET_KEY:-changeme}
+
+      # API Endpoint (for email links, unsubscribe, etc.)
+      API_ENDPOINT: https://mail.clepto.io
+
+      # SMTP (Resend)
+      SMTP_HOST: smtp.resend.com
+      SMTP_PORT: 465
+      SMTP_USERNAME: resend
+      SMTP_PASSWORD: ${RESEND_API_KEY}
+      SMTP_FROM_EMAIL: ${EMAIL_FROM_ADDRESS:-notifications@clepto.io}
+      SMTP_FROM_NAME: Clepto
+    volumes:
+      - notifuse-data:/app/data
+    networks:
+      - clepto-internal
+      - root_default
+    depends_on:
+      clepto-db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=root_default"
+      - "traefik.http.routers.notifuse.rule=Host(`mail.clepto.io`)"
+      - "traefik.http.routers.notifuse.entrypoints=websecure"
+      - "traefik.http.routers.notifuse.tls=true"
+      - "traefik.http.routers.notifuse.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.notifuse.loadbalancer.server.port=8080"
+    healthcheck:
+      test: [ 'CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/healthz' ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
