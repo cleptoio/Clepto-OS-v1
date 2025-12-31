@@ -8,7 +8,7 @@ This directory contains pre-built n8n workflow templates for Clepto OS automatio
 **Trigger**: Webhook when new user is created
 
 **Actions**:
-- Sends welcome email via Notifuse
+- Sends welcome email via Twenty CRM
 - Notifies admin via Telegram
 - Creates role-specific onboarding checklist
 - Returns success response
@@ -186,8 +186,8 @@ You can extend workflows by adding nodes:
 
 ### Email Not Sending
 
-- Verify Notifuse is running
-- Check SMTP configuration
+- Verify Twenty CRM email configuration
+- Check SMTP configuration (Resend)
 - Test with manual email send first
 
 ---

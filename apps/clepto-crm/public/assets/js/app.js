@@ -277,7 +277,7 @@ function generateDocsPage() {
 }
 
 function generateEmailPage() {
-    return `<div class="page-header"><h1>Email & Campaigns</h1><p class="page-subtitle">Marketing and transactional emails</p></div><div class="card" style="padding: 40px; text-align: center;"><i data-lucide="mail" style="width: 64px; height: 64px; color: var(--text-muted); margin-bottom: 16px;"></i><h3 style="color: var(--text-primary); margin-bottom: 8px;">Email Module</h3><p style="color: var(--text-muted);">Powered by Notifuse (Phase 5)</p></div>`;
+    return `<div class="page-header"><h1>Email & Campaigns</h1><p class="page-subtitle">Marketing and transactional emails</p></div><div class="card" style="padding: 40px; text-align: center;"><i data-lucide="mail" style="width: 64px; height: 64px; color: var(--text-muted); margin-bottom: 16px;"></i><h3 style="color: var(--text-primary); margin-bottom: 8px;">Email Module</h3><p style="color: var(--text-muted);">Coming soon</p></div>`;
 }
 
 // Toast Notifications

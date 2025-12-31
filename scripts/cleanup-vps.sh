@@ -33,8 +33,8 @@ echo ""
 echo "🛑 [1/5] Stopping Clepto OS containers..."
 
 # Stop and remove Clepto OS containers
-docker stop clepto-db clepto-redis twenty-server twenty-worker notifuse clepto-api 2>/dev/null || true
-docker rm clepto-db clepto-redis twenty-server twenty-worker notifuse clepto-api 2>/dev/null || true
+docker stop clepto-db clepto-redis twenty-server twenty-worker clepto-api 2>/dev/null || true
+docker rm clepto-db clepto-redis twenty-server twenty-worker clepto-api 2>/dev/null || true
 
 echo "✅ Containers stopped and removed"
 
@@ -42,8 +42,8 @@ echo ""
 echo "🗑️  [2/5] Removing Docker volumes..."
 
 # Remove Clepto OS volumes
-docker volume rm clepto-postgres-data clepto-redis-data clepto-uploads clepto-notifuse-data 2>/dev/null || true
-docker volume rm infra_postgres-data infra_redis-data infra_clepto-uploads infra_notifuse-data 2>/dev/null || true
+docker volume rm clepto-postgres-data clepto-redis-data clepto-uploads 2>/dev/null || true
+docker volume rm infra_postgres-data infra_redis-data infra_clepto-uploads 2>/dev/null || true
 
 echo "✅ Volumes removed"
 
