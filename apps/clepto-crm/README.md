@@ -62,7 +62,7 @@ clepto-crm/
 | **HR** | 🔄 Planned | Employee management |
 | **Finance** | 🔄 Planned | Invoices and revenue |
 | **Docs** | 🔄 Planned | Document repository |
-| **Email** | 🔄 Planned | Campaigns (Notifuse integration) |
+| **Email** | 🔄 Planned | Email campaigns |
 
 ## Tech Stack
 
